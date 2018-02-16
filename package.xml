@@ -5,7 +5,7 @@
   <description>crtk Python client</description>
 
   <maintainer email="anton.deguet@jhu.edu">Anton Deguet</maintainer>
-  <maintainer email="amunawar@.edu">Adnan Munawar</maintainer>
+  <maintainer email="amunawar@wpi.edu">Adnan Munawar</maintainer>
   <license>???</license>
 
   <buildtool_depend>catkin</buildtool_depend>
