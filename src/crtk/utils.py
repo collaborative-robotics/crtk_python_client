@@ -27,15 +27,46 @@ from geometry_msgs.msg import TransformStamped, Vector3, Quaternion, WrenchStamp
 from sensor_msgs.msg import JointState, Joy
 
 class utils:
-    def add_internals(class_instance):
-        print ('checking if object has __crtk__')
-        if not class_instance.hasattr("__crtk__"):
-            class_instance.setattr("__crtk__", {})
+    def __init__(self, ros_namespace):
+        self.__ros_namespace = ros_namespace
+        self.__subscribers = []
+        self.__publishers = []
 
-    def add_servoed_js(class_instance, ros_namespace):
-        print ('adding servoed js')
-        utils.add_internal(class_instance)
-        print ('added servoed js')
+        # internal data for setpoint_js
+        self.__setpoint_jp_data = numpy.array(0, dtype = numpy.float)
+        self.__setpoint_jf_data = numpy.array(0, dtype = numpy.float)
+
+        self.counter = 0
+
+    # internal methods for setpoint_js
+    def __setpoint_js_cb(self, data):
+        self.__setpoint_jp_data.resize(len(data.position))
+        self.__setpoint_jf_data.resize(len(data.effort))
+        self.__setpoint_jp_data.flat[:] = data.position
+        self.__setpoint_jf_data.flat[:] = data.effort
+
+    def __setpoint_jp(self):
+        return self.__setpoint_jp_data
+
+    def __setpoint_jf(self):
+        return self.__setpoint_jf_data
+
+    # add subscriber and expose internal methods if needed
+    def add_setpoint_js(self, class_instance):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(self, '__setpoint_jp'):
+            raise RuntimeWarning('setpoint_js already exists')
+
+        # create the subscriber and keep in list
+        self.__setpoint_js_subscriber = rospy.Subscriber(self.__ros_namespace + '/setpoint_js',
+                                                         JointState, self.__setpoint_js_cb)
+        self.__subscribers.append(self.__setpoint_js_subscriber)
+
+        # add attributes to class instance
+        class_instance.setpoint_jp = self.__setpoint_jp
+        class_instance.setpoint_jf = self.__setpoint_jf
+
 
 
 
@@ -83,10 +114,8 @@ class utils:
 #         self.__goal_reached_event = threading.Event()
 
 #         # continuous publish from dvrk_bridge
-#         self.__servoed_jp = numpy.array(0, dtype = numpy.float)
-#         self.__servoed_jf = numpy.array(0, dtype = numpy.float)
-#         self.__servoed_cp = PyKDL.Frame()
-#         self.__servoed_cp_local = PyKDL.Frame()
+#         self.__setpoint_cp = PyKDL.Frame()
+#         self.__setpoint_cp_local = PyKDL.Frame()
 #         self.__measured_jp = numpy.array(0, dtype = numpy.float)
 #         self.__measured_jv = numpy.array(0, dtype = numpy.float)
 #         self.__measured_jf = numpy.array(0, dtype = numpy.float)
@@ -97,8 +126,6 @@ class utils:
 #         self.__jacobian_spatial = numpy.ndarray(0, dtype = numpy.float)
 #         self.__jacobian_body = numpy.ndarray(0, dtype = numpy.float)
 
-#         self.__sub_list = []
-#         self.__pub_list = []
 
 #         # publishers
 #         frame = PyKDL.Frame()
@@ -150,12 +177,10 @@ class utils:
 #                                           String, self.__arm_desired_state_cb),
 #                            rospy.Subscriber(self.__full_ros_namespace + '/goal_reached',
 #                                           Bool, self.__goal_reached_cb),
-#                            rospy.Subscriber(self.__full_ros_namespace + '/servoed_js',
-#                                           JointState, self.__servoed_js_cb),
-#                            rospy.Subscriber(self.__full_ros_namespace + '/servoed_cp',
-#                                           TransformStamped, self.__servoed_cp_cb),
-#                            rospy.Subscriber(self.__full_ros_namespace + '/local/servoed_cp',
-#                                           TransformStamped, self.__servoed_cp_local_cb),
+#                            rospy.Subscriber(self.__full_ros_namespace + '/setpoint_cp',
+#                                           TransformStamped, self.__setpoint_cp_cb),
+#                            rospy.Subscriber(self.__full_ros_namespace + '/local/setpoint_cp',
+#                                           TransformStamped, self.__setpoint_cp_local_cb),
 #                            rospy.Subscriber(self.__full_ros_namespace + '/measured_js',
 #                                           JointState, self.__measured_js_cb),
 #                            rospy.Subscriber(self.__full_ros_namespace + '/measured_cp',
@@ -201,28 +226,20 @@ class utils:
 #         self.__goal_reached_event.set()
 
 
-#     def __servoed_js_cb(self, data):
-#         """Callback for the joint desired position.
-
-#         :param data: the `JointState <http://docs.ros.org/api/sensor_msgs/html/msg/JointState.html>`_desired"""
-#         self.__servoed_jp.resize(len(data.position))
-#         self.__servoed_jf.resize(len(data.effort))
-#         self.__servoed_jp.flat[:] = data.position
-#         self.__servoed_jf.flat[:] = data.effort
 
 
-#     def __servoed_cp_cb(self, data):
+#     def __setpoint_cp_cb(self, data):
 #         """Callback for the cartesian desired position.
 
 #         :param data: the cartesian position desired"""
-#         self.__servoed_cp = TransformFromMsg(data.transform)
+#         self.__setpoint_cp = TransformFromMsg(data.transform)
 
 
-#     def __servoed_cp_local_cb(self, data):
+#     def __setpoint_cp_local_cb(self, data):
 #         """Callback for the cartesian desired position.
 
 #         :param data: the cartesian position desired"""
-#         self.__servoed_cp_local = TransformFromMsg(data.transform)
+#         self.__setpoint_cp_local = TransformFromMsg(data.transform)
 
 
 #     def __measured_js_cb(self, data):
@@ -408,14 +425,6 @@ class utils:
 #         return self.__measured_jv
 
 
-#     def get_current_joint_effort(self):
-#         """Get the :ref:`current joint effort <currentvdesired>` of
-#         the arm.
-
-#         :returns: the current position of the arm in joint space
-#         :rtype: `JointState <http://docs.ros.org/api/sensor_msgs/html/msg/JointState.html>`_"""
-#         return self.__measured_jf
-
 #     def get_jacobian_spatial(self):
 #         """Get the :ref:`jacobian spatial` of the arm.
 
@@ -430,38 +439,38 @@ class utils:
 #         :rtype: `numpy.ndarray <https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html>`_"""
 #         return self.__jacobian_body
 
-#     def servoed_cp(self):
+#     def setpoint_cp(self):
 #         """Get the :ref:`desired cartesian position <currentvdesired>` of the arm.
 
 #         :returns: the desired position of the arm in cartesian space
 #         :rtype: `PyKDL.Frame <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_"""
-#         return self.__servoed_cp
+#         return self.__setpoint_cp
 
 
-#     def servoed_cp_local(self):
+#     def setpoint_cp_local(self):
 #         """Get the :ref:`desired cartesian position <currentvdesired>` of the arm.
 
 #         :returns: the desired position of the arm in cartesian space
 #         :rtype: `PyKDL.Frame <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_"""
-#         return self.__servoed_cp_local
+#         return self.__setpoint_cp_local
 
 
-#     def servoed_jp(self):
+#     def setpoint_jp(self):
 #         """Get the :ref:`desired joint position <currentvdesired>` of
 #         the arm.
 
 #         :returns: the desired position of the arm in joint space
 #         :rtype: `JointState <http://docs.ros.org/api/sensor_msgs/html/msg/JointState.html>`_"""
-#         return self.__servoed_jp
+#         return self.__setpoint_jp
 
 
-#     def servoed_jf(self):
+#     def setpoint_jf(self):
 #         """Get the :ref:`desired joint effort <currentvdesired>` of
 #         the arm.
 
 #         :returns: the desired effort of the arm in joint space
 #         :rtype: `JointState <http://docs.ros.org/api/sensor_msgs/html/msg/JointState.html>`_"""
-#         return self.__servoed_jf
+#         return self.__setpoint_jf
 
 
 #     def get_joint_number(self):
@@ -469,7 +478,7 @@ class utils:
 
 #         :returns: the number of joints on the specified arm
 #         :rtype: int"""
-#         joint_num = len(self.__servoed_jp)
+#         joint_num = len(self.__setpoint_jp)
 #         return joint_num
 
 
@@ -543,7 +552,7 @@ class utils:
 #         :param delta_frame: the incremental `PyKDL.Frame <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_ based upon the current position
 #         :param interpolate: see  :ref:`interpolate <interpolate>`"""
 #         # add the incremental move to the current position, to get the ending frame
-#         end_frame = delta_frame * self.__servoed_cp
+#         end_frame = delta_frame * self.__setpoint_cp
 #         return self.__move_frame(end_frame, interpolate, blocking)
 
 
@@ -568,7 +577,7 @@ class utils:
 #         :param abs_translation: the absolute translation you want to make based on the current position, this is in terms of a  `PyKDL.Vector <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_
 #         :param interpolate: see  :ref:`interpolate <interpolate>`"""
 #         # convert into a Frame
-#         abs_rotation = self.__servoed_cp.M
+#         abs_rotation = self.__setpoint_cp.M
 #         abs_frame = PyKDL.Frame(abs_rotation, abs_translation)
 #         return self.__move_frame(abs_frame, interpolate, blocking)
 
@@ -579,7 +588,7 @@ class utils:
 #         :param abs_rotation: the absolute `PyKDL.Rotation <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_
 #         :param interpolate: see  :ref:`interpolate <interpolate>`"""
 #         # convert into a Frame
-#         abs_vector = self.__servoed_cp.p
+#         abs_vector = self.__setpoint_cp.p
 #         abs_frame = PyKDL.Frame(abs_rotation, abs_vector)
 #         return self.__move_frame(abs_frame, interpolate, blocking)
 
@@ -655,7 +664,7 @@ class utils:
 #             print "delta_pos must be an array of size", self.get_joint_number()
 #             return False
 
-#         abs_pos = numpy.array(self.__servoed_jp)
+#         abs_pos = numpy.array(self.__setpoint_jp)
 #         abs_pos = abs_pos+ delta_pos
 #         return self.__move_joint(abs_pos, interpolate, blocking)
 
@@ -701,7 +710,7 @@ class utils:
 #                 print "all indices must be less than", self.get_joint_number()
 #                 return False
 
-#         abs_pos = numpy.array(self.__servoed_jp)
+#         abs_pos = numpy.array(self.__setpoint_jp)
 #         for i in range(len(indices)):
 #             abs_pos[indices[i]] = abs_pos[indices[i]] + delta_pos[i]
 
@@ -766,7 +775,7 @@ class utils:
 #                 print "all indices must be less than", self.get_joint_number()
 #                 return False
 
-#         abs_pos_result = numpy.array(self.__servoed_jp)
+#         abs_pos_result = numpy.array(self.__setpoint_jp)
 #         for i in range(len(indices)):
 #             abs_pos_result[indices[i]] = abs_pos[i]
 

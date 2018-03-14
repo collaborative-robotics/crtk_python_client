@@ -12,6 +12,7 @@
 # --- end cisst license ---
 
 import crtk.utils
+import rospy
 
 class arm(object):
 
@@ -20,8 +21,10 @@ class arm(object):
         self.__init_arm(arm_name, ros_namespace)
 
     def __init_arm(self, arm_name, ros_namespace = '/dvrk/'):
-        # data members, event based
-        crtk.utils.add_servoed_js(self, ros_namespace)
+        self.__crtk_utils = crtk.utils(ros_namespace + arm_name)
+
+        # add crtk features that we need and are supported by the dVRK
+        self.__crtk_utils.add_setpoint_js(self)
 
         if not rospy.get_node_uri():
             rospy.init_node('arm_api', anonymous = True, log_level = rospy.WARN)
