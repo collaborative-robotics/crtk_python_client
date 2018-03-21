@@ -26,17 +26,58 @@ from std_msgs.msg import String, Bool, Float32, Empty, Float64MultiArray
 from geometry_msgs.msg import TransformStamped, Vector3, Quaternion, WrenchStamped, TwistStamped
 from sensor_msgs.msg import JointState, Joy
 
+
+
+def TransformFromMsg(t):
+    """
+    :param p: input pose
+    :type p: :class:`geometry_msgs.msg.Pose`
+    :return: New :class:`PyKDL.Frame` object
+
+    Convert a pose represented as a ROS Pose message to a :class:`PyKDL.Frame`.
+    """
+    return PyKDL.Frame(PyKDL.Rotation.Quaternion(t.rotation.x,
+                                                 t.rotation.y,
+                                                 t.rotation.z,
+                                                 t.rotation.w),
+                       PyKDL.Vector(t.translation.x,
+                                    t.translation.y,
+                                    t.translation.z))
+
+def TransformToMsg(f):
+    """
+    :param f: input pose
+    :type f: :class:`PyKDL.Frame`
+
+    Return a ROS Pose message for the Frame f.
+
+    """
+    m = TransformStamped()
+    t = m.transform()
+    t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w = f.M.GetQuaternion()
+    t.translation.x = f.p[0]
+    t.translation.y = f.p[1]
+    t.translation.z = f.p[2]
+    return m
+
+
+
 class utils:
     def __init__(self, ros_namespace):
         self.__ros_namespace = ros_namespace
         self.__subscribers = []
         self.__publishers = []
-
-        # internal data for setpoint_js
+        # internal data for subscriber callbacks
         self.__setpoint_jp_data = numpy.array(0, dtype = numpy.float)
         self.__setpoint_jf_data = numpy.array(0, dtype = numpy.float)
+        self.__setpoint_cp_data = PyKDL.Frame()
+        self.__measured_jp_data = numpy.array(0, dtype = numpy.float)
+        self.__measured_jv_data = numpy.array(0, dtype = numpy.float)
+        self.__measured_jf_data = numpy.array(0, dtype = numpy.float)
+        self.__measured_cp_data = PyKDL.Frame()
+        self.__measured_cv_data = numpy.zeros(6, dtype = numpy.float)
+        self.__measured_cf_data = numpy.zeros(6, dtype = numpy.float)
 
-        self.counter = 0
 
     # internal methods for setpoint_js
     def __setpoint_js_cb(self, data):
@@ -51,51 +92,142 @@ class utils:
     def __setpoint_jf(self):
         return self.__setpoint_jf_data
 
-    # add subscriber and expose internal methods if needed
     def add_setpoint_js(self, class_instance):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(self, '__setpoint_jp'):
+        if hasattr(class_instance, 'setpoint_jp'):
             raise RuntimeWarning('setpoint_js already exists')
-
         # create the subscriber and keep in list
         self.__setpoint_js_subscriber = rospy.Subscriber(self.__ros_namespace + '/setpoint_js',
                                                          JointState, self.__setpoint_js_cb)
         self.__subscribers.append(self.__setpoint_js_subscriber)
-
         # add attributes to class instance
         class_instance.setpoint_jp = self.__setpoint_jp
         class_instance.setpoint_jf = self.__setpoint_jf
 
 
+    # internal methods for setpoint_cp
+    def __setpoint_cp_cb(self, data):
+        self.__setpoint_cp_data = TransformFromMsg(data.transform)
+
+    def __setpoint_cp(self):
+        return self.__setpoint_cp_data
+
+    def add_setpoint_cp(self, class_instance):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(class_instance, 'setpoint_cp'):
+            raise RuntimeWarning('setpoint_cp already exists')
+        # create the subscriber and keep in list
+        self.__setpoint_cp_subscriber = rospy.Subscriber(self.__ros_namespace + '/setpoint_cp',
+                                                         TransformStamped, self.__setpoint_cp_cb)
+        self.__subscribers.append(self.__setpoint_cp_subscriber)
+        # add attributes to class instance
+        class_instance.setpoint_cp = self.__setpoint_cp
 
 
-# # from code import InteractiveConsole
-# # from imp import new_module
+    # internal methods for measured_js
+    def __measured_js_cb(self, data):
+        self.__measured_jp_data.resize(len(data.position))
+        self.__measured_jv_data.resize(len(data.position))
+        self.__measured_jf_data.resize(len(data.effort))
+        self.__measured_jp_data.flat[:] = data.position
+        self.__measured_jv_data.flat[:] = data.velocity
+        self.__measured_jf_data.flat[:] = data.effort
 
-# #class Console(InteractiveConsole):
-# #    def __init__(self, names=None):
-# #        names = names or {}
-# #        names['console'] = self
-# #        InteractiveConsole.__init__(self, names)
-# #        self.superspace = new_module('superspace')
-# #
-# #    def enter(self, source):
-# #        source = self.preprocess(source)
-# #        self.runcode(source)
-# #
-# #    @staticmethod
-# #    def preprocess(source):
-# #        return source
+    def __measured_jp(self):
+        return self.__measured_jp_data
 
-# class arm(object):
-#     """Simple arm API wrapping around ROS messages
-#     """
+    def __measured_jv(self):
+        return self.__measured_jv_data
 
-#     # initialize the arm
-#     def __init__(self, arm_name, ros_namespace = '/dvrk/'):
-#         # base class constructor in separate method so it can be called in derived classes
-#         self.__init_arm(arm_name, ros_namespace)
+    def __measured_jf(self):
+        return self.__measured_jf_data
+
+    def add_measured_js(self, class_instance):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(class_instance, 'measured_jp'):
+            raise RuntimeWarning('measured_js already exists')
+        # create the subscriber and keep in list
+        self.__measured_js_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_js',
+                                                         JointState, self.__measured_js_cb)
+        self.__subscribers.append(self.__measured_js_subscriber)
+
+        # add attributes to class instance
+        class_instance.measured_jp = self.__measured_jp
+        class_instance.measured_jv = self.__measured_jv
+        class_instance.measured_jf = self.__measured_jf
+
+
+    # internal methods for measured_cp
+    def __measured_cp_cb(self, data):
+        self.__measured_cp_data = TransformFromMsg(data.transform)
+
+    def __measured_cp(self):
+        return self.__measured_cp_data
+
+    def add_measured_cp(self, class_instance):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(class_instance, 'measured_cp'):
+            raise RuntimeWarning('measured_cp already exists')
+        # create the subscriber and keep in list
+        self.__measured_cp_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_cp',
+                                                         TransformStamped, self.__measured_cp_cb)
+        self.__subscribers.append(self.__measured_cp_subscriber)
+        # add attributes to class instance
+        class_instance.measured_cp = self.__measured_cp
+
+
+    # internal methods for measured_cv
+    def __measured_cv_cb(self, data):
+        self.__measured_cv_data[0] = data.twist.linear.x
+        self.__measured_cv_data[1] = data.twist.linear.y
+        self.__measured_cv_data[2] = data.twist.linear.z
+        self.__measured_cv_data[3] = data.twist.angular.x
+        self.__measured_cv_data[4] = data.twist.angular.y
+        self.__measured_cv_data[5] = data.twist.angular.z
+
+    def __measured_cv(self):
+        return self.__measured_cv_data
+
+    def add_measured_cv(self, class_instance):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(class_instance, 'measured_cv'):
+            raise RuntimeWarning('measured_cv already exists')
+        # create the subscriber and keep in list
+        self.__measured_cv_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_cv',
+                                                         TwistStamped, self.__measured_cv_cb)
+        self.__subscribers.append(self.__measured_cv_subscriber)
+        # add attributes to class instance
+        class_instance.measured_cv = self.__measured_cv
+
+
+    # internal methods for measured_cf
+    def __measured_cf_cb(self, data):
+        self.__measured_cf_data[0] = data.wrench.force.x
+        self.__measured_cf_data[1] = data.wrench.force.y
+        self.__measured_cf_data[2] = data.wrench.force.z
+        self.__measured_cf_data[3] = data.wrench.torque.x
+        self.__measured_cf_data[4] = data.wrench.torque.y
+        self.__measured_cf_data[5] = data.wrench.torque.z
+
+    def __measured_cf(self):
+        return self.__measured_cf_data
+
+    def add_measured_cf(self, class_instance):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(class_instance, 'measured_cf'):
+            raise RuntimeWarning('measured_cf already exists')
+        # create the subscriber and keep in list
+        self.__measured_cf_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_cf',
+                                                         TwistStamped, self.__measured_cf_cb)
+        self.__subscribers.append(self.__measured_cf_subscriber)
+        # add attributes to class instance
+        class_instance.measured_cf = self.__measured_cf
 
 
 #     def __init_arm(self, arm_name, ros_namespace = '/dvrk/'):
@@ -114,15 +246,6 @@ class utils:
 #         self.__goal_reached_event = threading.Event()
 
 #         # continuous publish from dvrk_bridge
-#         self.__setpoint_cp = PyKDL.Frame()
-#         self.__setpoint_cp_local = PyKDL.Frame()
-#         self.__measured_jp = numpy.array(0, dtype = numpy.float)
-#         self.__measured_jv = numpy.array(0, dtype = numpy.float)
-#         self.__measured_jf = numpy.array(0, dtype = numpy.float)
-#         self.__measured_cp = PyKDL.Frame()
-#         self.__measured_cp_local = PyKDL.Frame()
-#         self.__measured_cv = numpy.zeros(6, dtype = numpy.float)
-#         self.__measured_cf = numpy.zeros(6, dtype = numpy.float)
 #         self.__jacobian_spatial = numpy.ndarray(0, dtype = numpy.float)
 #         self.__jacobian_body = numpy.ndarray(0, dtype = numpy.float)
 
@@ -177,20 +300,6 @@ class utils:
 #                                           String, self.__arm_desired_state_cb),
 #                            rospy.Subscriber(self.__full_ros_namespace + '/goal_reached',
 #                                           Bool, self.__goal_reached_cb),
-#                            rospy.Subscriber(self.__full_ros_namespace + '/setpoint_cp',
-#                                           TransformStamped, self.__setpoint_cp_cb),
-#                            rospy.Subscriber(self.__full_ros_namespace + '/local/setpoint_cp',
-#                                           TransformStamped, self.__setpoint_cp_local_cb),
-#                            rospy.Subscriber(self.__full_ros_namespace + '/measured_js',
-#                                           JointState, self.__measured_js_cb),
-#                            rospy.Subscriber(self.__full_ros_namespace + '/measured_cp',
-#                                           TransformStamped, self.__measured_cp_cb),
-#                            rospy.Subscriber(self.__full_ros_namespace + '/local/measured_cp',
-#                                           TransformStamped, self.__measured_cp_local_cb),
-#                            rospy.Subscriber(self.__full_ros_namespace + '/measured_cv',
-#                                           TwistStamped, self.__measured_cv_cb),
-#                            rospy.Subscriber(self.__full_ros_namespace + '/measured_cf',
-#                                           WrenchStamped, self.__measured_cf_cb),
 #                            rospy.Subscriber(self.__full_ros_namespace + '/jacobian_spatial',
 #                                           Float64MultiArray, self.__jacobian_spatial_cb),
 #                            rospy.Subscriber(self.__full_ros_namespace + '/jacobian_body',
@@ -224,72 +333,6 @@ class utils:
 #         :param data: the goal reached"""
 #         self.__goal_reached = data.data
 #         self.__goal_reached_event.set()
-
-
-
-
-#     def __setpoint_cp_cb(self, data):
-#         """Callback for the cartesian desired position.
-
-#         :param data: the cartesian position desired"""
-#         self.__setpoint_cp = TransformFromMsg(data.transform)
-
-
-#     def __setpoint_cp_local_cb(self, data):
-#         """Callback for the cartesian desired position.
-
-#         :param data: the cartesian position desired"""
-#         self.__setpoint_cp_local = TransformFromMsg(data.transform)
-
-
-#     def __measured_js_cb(self, data):
-#         """Callback for the current joint position.
-
-#         :param data: the `JointState <http://docs.ros.org/api/sensor_msgs/html/msg/JointState.html>`_current"""
-#         self.__measured_jp.resize(len(data.position))
-#         self.__measured_jv.resize(len(data.velocity))
-#         self.__measured_jf.resize(len(data.effort))
-#         self.__measured_jp.flat[:] = data.position
-#         self.__measured_jv.flat[:] = data.velocity
-#         self.__measured_jf.flat[:] = data.effort
-
-
-#     def __measured_cp_cb(self, data):
-#         """Callback for the current cartesian position.
-
-#         :param data: The cartesian position current."""
-#         self.__measured_cp = TransformFromMsg(data.transform)
-
-
-#     def __measured_cp_local_cb(self, data):
-#         """Callback for the current cartesian position.
-
-#         :param data: The cartesian position current."""
-#         self.__measured_cp_local = TransformFromMsg(data.transform)
-
-
-#     def __measured_cv_cb(self, data):
-#         """Callback for the current twist in body frame.
-
-#         :param data: Twist."""
-#         self.__measured_cv[0] = data.twist.linear.x
-#         self.__measured_cv[1] = data.twist.linear.y
-#         self.__measured_cv[2] = data.twist.linear.z
-#         self.__measured_cv[3] = data.twist.angular.x
-#         self.__measured_cv[4] = data.twist.angular.y
-#         self.__measured_cv[5] = data.twist.angular.z
-
-
-#     def __measured_cf_cb(self, data):
-#         """Callback for the current wrench in body frame.
-
-#         :param data: Wrench."""
-#         self.__measured_cf[0] = data.wrench.force.x
-#         self.__measured_cf[1] = data.wrench.force.y
-#         self.__measured_cf[2] = data.wrench.force.z
-#         self.__measured_cf[3] = data.wrench.torque.x
-#         self.__measured_cf[4] = data.wrench.torque.y
-#         self.__measured_cf[5] = data.wrench.torque.z
 
 #     def __jacobian_spatial_cb(self, data):
 #         """Callback for the Jacobian in spatial frame.
@@ -368,63 +411,6 @@ class utils:
 #         :rtype: string"""
 #         return self.__arm_desired_state
 
-
-#     def measured_cp(self):
-#         """Get the :ref:`current cartesian position <currentvdesired>` of the arm.
-
-#         :returns: the current position of the arm in cartesian space
-#         :rtype: `PyKDL.Frame <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_"""
-#         return self.__measured_cp
-
-
-#     def measured_cp_local(self):
-#         """Get the :ref:`current cartesian position <currentvdesired>` of the arm.
-
-#         :returns: the current position of the arm in cartesian space
-#         :rtype: `PyKDL.Frame <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_"""
-#         return self.__measured_cp_local
-
-
-#     def measured_cv(self):
-#         """Get the current cartesian velocity of the arm.  This
-#         is based on the body jacobian, both linear and angular are
-#         rotated to be defined in base frame.
-
-#         :returns: the current position of the arm in cartesian space
-#         :rtype: geometry_msgs.TwistStamped"""
-#         return self.__measured_cv
-
-
-#     def measured_cf_body(self):
-#         """Get the current cartesian force applied on arm.  This is
-#         based on the body jacobian, both linear and angular are
-#         rotated to be defined in base frame if the flag
-#         wrench_body_orientation_absolute is set to True.  See method
-#         set_wrench_body_orientation_absolute.
-
-#         :returns: the current force applied to the arm in cartesian space
-#         :rtype: geometry_msgs.WrenchStamped"""
-#         return self.__measured_cf
-
-
-#     def measured_jp(self):
-#         """Get the :ref:`current joint position <currentvdesired>` of
-#         the arm.
-
-#         :returns: the current position of the arm in joint space
-#         :rtype: `JointState <http://docs.ros.org/api/sensor_msgs/html/msg/JointState.html>`_"""
-#         return self.__measured_jp
-
-
-#     def measured_jv(self):
-#         """Get the :ref:`current joint velocity <currentvdesired>` of
-#         the arm.
-
-#         :returns: the current position of the arm in joint space
-#         :rtype: `JointState <http://docs.ros.org/api/sensor_msgs/html/msg/JointState.html>`_"""
-#         return self.__measured_jv
-
-
 #     def get_jacobian_spatial(self):
 #         """Get the :ref:`jacobian spatial` of the arm.
 
@@ -439,40 +425,6 @@ class utils:
 #         :rtype: `numpy.ndarray <https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html>`_"""
 #         return self.__jacobian_body
 
-#     def setpoint_cp(self):
-#         """Get the :ref:`desired cartesian position <currentvdesired>` of the arm.
-
-#         :returns: the desired position of the arm in cartesian space
-#         :rtype: `PyKDL.Frame <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_"""
-#         return self.__setpoint_cp
-
-
-#     def setpoint_cp_local(self):
-#         """Get the :ref:`desired cartesian position <currentvdesired>` of the arm.
-
-#         :returns: the desired position of the arm in cartesian space
-#         :rtype: `PyKDL.Frame <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_"""
-#         return self.__setpoint_cp_local
-
-
-#     def setpoint_jp(self):
-#         """Get the :ref:`desired joint position <currentvdesired>` of
-#         the arm.
-
-#         :returns: the desired position of the arm in joint space
-#         :rtype: `JointState <http://docs.ros.org/api/sensor_msgs/html/msg/JointState.html>`_"""
-#         return self.__setpoint_jp
-
-
-#     def setpoint_jf(self):
-#         """Get the :ref:`desired joint effort <currentvdesired>` of
-#         the arm.
-
-#         :returns: the desired effort of the arm in joint space
-#         :rtype: `JointState <http://docs.ros.org/api/sensor_msgs/html/msg/JointState.html>`_"""
-#         return self.__setpoint_jf
-
-
 #     def get_joint_number(self):
 #         """Get the number of joints on the arm specified.
 
@@ -480,33 +432,6 @@ class utils:
 #         :rtype: int"""
 #         joint_num = len(self.__setpoint_jp)
 #         return joint_num
-
-
-#     def __check_input_type(self, input, type_list):
-#         """Check if the data input is a data type that is located in type_list
-
-#         :param input: The data type that needs to be checked.
-#         :param type_list : A list of types to check input against.
-#         :returns: whether or not the input is a type in type_list
-#         :rtype: Bool"""
-#         found = False
-#         # check the input against all input_type
-#         for i in range (len(type_list)):
-#             if (type(input) is type_list[i]):
-#                   return True
-#         # not of type_list print state for this error inside
-#         if (found == False):
-#             print 'Error in ', inspect.stack()[1][3], 'input is of type', input, 'and is not one of:'
-#             message = ''
-#             # skip_length
-#             i = 0
-#             while i < len(type_list):
-#                 message += ' '
-#                 message += str(type_list[i])
-#                 i += 1
-#             print message
-#         return False
-
 
 #     def dmove(self, delta_input, interpolate = True, blocking = True):
 #         """Incremental motion in cartesian space.
@@ -903,34 +828,3 @@ class utils:
 #             print 'Unregistered {} pubs for {}'.format(self.__pub_list.__len__(), self.__arm_name)
 
 # # to and from pose message
-# def TransformFromMsg(t):
-#     """
-#     :param p: input pose
-#     :type p: :class:`geometry_msgs.msg.Pose`
-#     :return: New :class:`PyKDL.Frame` object
-
-#     Convert a pose represented as a ROS Pose message to a :class:`PyKDL.Frame`.
-#     """
-#     return PyKDL.Frame(PyKDL.Rotation.Quaternion(t.rotation.x,
-#                                      t.rotation.y,
-#                                      t.rotation.z,
-#                                      t.rotation.w),
-#                  PyKDL.Vector(t.translation.x,
-#                         t.translation.y,
-#                         t.translation.z))
-
-# def TransformToMsg(f):
-#     """
-#     :param f: input pose
-#     :type f: :class:`PyKDL.Frame`
-
-#     Return a ROS Pose message for the Frame f.
-
-#     """
-#     m = TransformStamped()
-#     t = m.transform()
-#     t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w = f.M.GetQuaternion()
-#     t.translation.x = f.p[0]
-#     t.translation.y = f.p[1]
-#     t.translation.z = f.p[2]
-#     return m
