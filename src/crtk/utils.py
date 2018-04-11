@@ -230,6 +230,26 @@ class utils:
         class_instance.measured_cf = self.__measured_cf
 
 
+    # internal methods for servo_jp
+    def __servo_jp(self, setpoint):
+        joint_state = JointState()
+        joint_state.position[:] = setpoint.flat
+        self.__servo_jp_publisher.publish(joint_state)
+
+    def add_servo_jp(self, class_instance):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(class_instance, 'servo_jp'):
+            raise RuntimeWarning('servo_jp already exists')
+        # create the subscriber and keep in list
+        self.__servo_jp_publisher = rospy.Publisher(self.__ros_namespace + '/servo_jp',
+                                                    JointState, latch = True, queue_size = 1)
+        self.__publishers.append(self.__servo_jp_publisher)
+        # add attributes to class instance
+        class_instance.servo_jp = self.__servo_jp
+
+
+
 #     def __init_arm(self, arm_name, ros_namespace = '/dvrk/'):
 #         """Constructor.  This initializes a few data members.It
 #         requires a arm name, this will be used to find the ROS
@@ -256,9 +276,6 @@ class utils:
 #         self.__set_arm_desired_state_pub = rospy.Publisher(self.__full_ros_namespace
 #                                                            + '/set_desired_state',
 #                                                            String, latch = True, queue_size = 1)
-#         self.__servo_jp_pub = rospy.Publisher(self.__full_ros_namespace
-#                                               + '/servo_jp',
-#                                               JointState, latch = True, queue_size = 1)
 #         self.__move_jp_pub = rospy.Publisher(self.__full_ros_namespace
 #                                              + '/move_jp',
 #                                              JointState, latch = True, queue_size = 1)
@@ -718,17 +735,6 @@ class utils:
 #         else:
 #             return self.__move_joint_direct(abs_joint)
 
-#     def __move_joint_direct(self, end_joint):
-#         """Move the arm to the end vector by passing the trajectory generator.
-
-#         :param end_joint: the list of joints in which you should conclude movement
-#         :returns: true if you had succesfully move
-#         :rtype: Bool"""
-#         # go to that position directly
-#         joint_state = JointState()
-#         joint_state.position[:] = end_joint.flat
-#         self.__servo_jp_pub.publish(joint_state)
-#         return True
 
 
 #     def __move_joint_goal(self, end_joint, blocking):
