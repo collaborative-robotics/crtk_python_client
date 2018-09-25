@@ -31,16 +31,16 @@ class example_application:
 
     # configuration
     def configure(self, robot_name):
-        print rospy.get_caller_id(), ' -> configuring crtk_arm_test for ', robot_name
+        print(rospy.get_caller_id(), ' -> configuring crtk_arm_test for ', robot_name)
         self.arm = crtk.arm(robot_name)
 
     # direct joint control example
     def servo_jp(self):
-        print rospy.get_caller_id(), ' -> starting joint direct'
+        print(rospy.get_caller_id(), ' -> starting joint direct')
         # get current position
-        initial_joint_position = numpy.copy(self.arm.measured_jp())
-        goal = numpy.copy(self.arm.measured_jp())
-        print rospy.get_caller_id(), ' -> testing direct joint position for 2 joints of ', len(initial_joint_position)
+        initial_joint_position = numpy.copy(self.arm.setpoint_jp())
+        goal = numpy.copy(self.arm.setpoint_jp())
+        print(rospy.get_caller_id(), ' -> testing direct joint position for 2 joints of ', initial_joint_position.size)
         amplitude = math.radians(10.0) # +/- 10 degrees
         duration = 5  # seconds
         rate = 200 # aiming for 200 Hz
@@ -52,14 +52,14 @@ class example_application:
             goal[1] = initial_joint_position[1] + amplitude *  math.sin(i * math.radians(360.0) / samples)
             self.arm.servo_jp(goal)
             rospy.sleep(1.0 / rate)
-        print rospy.get_caller_id(), ' <- joint direct complete'
+        print(rospy.get_caller_id(), ' <- joint direct complete')
 
     # # goal joint control example
     # def move_jp(self):
     #     print rospy.get_caller_id(), ' -> starting joint goal'
     #     # get current position
     #     initial_joint_position = numpy.copy(self.arm.measured_jp())
-    #     print rospy.get_caller_id(), ' -> testing goal joint position for 2 joints of ', len(initial_joint_position)
+    #     print rospy.get_caller_id(), ' -> testing goal joint position for 2 joints of ', initial_joint_position.size)
     #     amplitude = math.radians(10.0)
     #     # create a new goal starting with current position
     #     goal = numpy.copy(initial_joint_position)
@@ -86,38 +86,28 @@ class example_application:
     #         goal[2] = 0.12
     #         self.arm.move_joint(goal, interpolate = True)
 
-    # # direct cartesian control example
-    # def cartesian_direct(self):
-    #     print rospy.get_caller_id(), ' -> starting cartesian direct'
-    #     self.prepare_cartesian()
+    # direct cartesian control example
+    def servo_cp(self):
+        print(rospy.get_caller_id(), ' -> starting cartesian direct')
 
-    #     # create a new goal starting with current position
-    #     initial_cartesian_position = PyKDL.Frame()
-    #     initial_cartesian_position.p = self.arm.servoed_cp().p
-    #     initial_cartesian_position.M = self.arm.servoed_cp().M
-    #     goal = PyKDL.Frame()
-    #     goal.p = self.arm.servoed_cp().p
-    #     goal.M = self.arm.servoed_cp().M
-    #     # motion parameters
-    #     amplitude = 0.05 # 5 cm
-    #     duration = 5  # 5 seconds
-    #     rate = 200 # aiming for 200 Hz
-    #     samples = duration * rate
-    #     for i in xrange(samples):
-    #         goal.p[0] =  initial_cartesian_position.p[0] + amplitude *  math.sin(i * math.radians(360.0) / samples)
-    #         goal.p[1] =  initial_cartesian_position.p[1] + amplitude *  math.sin(i * math.radians(360.0) / samples)
-    #         self.arm.move(goal.p, interpolate = False)
-    #         # check error on kinematics, compare to desired on arm.
-    #         # to test tracking error we would compare to
-    #         # current_position
-    #         errorX = goal.p[0] - self.arm.servoed_cp().p[0]
-    #         errorY = goal.p[1] - self.arm.servoed_cp().p[1]
-    #         errorZ = goal.p[2] - self.arm.servoed_cp().p[2]
-    #         error = math.sqrt(errorX * errorX + errorY * errorY + errorZ * errorZ)
-    #         if error > 0.002: # 2 mm
-    #             print 'Inverse kinematic error in position [', i, ']: ', error
-    #         rospy.sleep(1.0 / rate)
-    #     print rospy.get_caller_id(), ' <- cartesian direct complete'
+        # create a new goal starting with current position
+        initial_cartesian_position = PyKDL.Frame()
+        initial_cartesian_position.p = self.arm.setpoint_cp().p
+        initial_cartesian_position.M = self.arm.setpoint_cp().M
+        goal = PyKDL.Frame()
+        goal.p = self.arm.setpoint_cp().p
+        goal.M = self.arm.setpoint_cp().M
+        # motion parameters
+        amplitude = 0.05 # 5 cm
+        duration = 5  # 5 seconds
+        rate = 200 # aiming for 200 Hz
+        samples = duration * rate
+        for i in xrange(samples):
+            goal.p[0] =  initial_cartesian_position.p[0] + amplitude *  math.sin(i * math.radians(360.0) / samples)
+            goal.p[1] =  initial_cartesian_position.p[1] + amplitude *  math.sin(i * math.radians(360.0) / samples)
+            self.arm.servo_cp(goal)
+            rospy.sleep(1.0 / rate)
+        print(rospy.get_caller_id(), ' <- cartesian direct complete')
 
     # # direct cartesian control example
     # def cartesian_goal(self):
@@ -165,13 +155,13 @@ class example_application:
     def run(self):
         self.servo_jp()
         # self.joint_goal()
-        # self.cartesian_direct()
+        self.servo_cp()
         # self.cartesian_goal()
 
 if __name__ == '__main__':
     try:
         if (len(sys.argv) != 2):
-            print sys.argv[0], ' requires one argument, i.e. name of crtk arm'
+            print(sys.argv[0], ' requires one argument, i.e. name of crtk arm')
         else:
             application = example_application()
             application.configure(sys.argv[1])

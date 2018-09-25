@@ -31,6 +31,7 @@ class arm(object):
         self.__crtk_utils.add_measured_cv(self)
         self.__crtk_utils.add_measured_cf(self)
         self.__crtk_utils.add_servo_jp(self)
+        self.__crtk_utils.add_servo_cp(self)
 
         if not rospy.get_node_uri():
             rospy.init_node('arm_api', anonymous = True, log_level = rospy.WARN)
