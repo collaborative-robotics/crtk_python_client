@@ -42,16 +42,17 @@ class crtk_haptic_example:
         # populate this class with all the ROS topics we need
         self.crtk_utils = crtk.utils(device_namespace)
         self.crtk_utils.add_measured_cp(self)
+        self.crtk_utils.add_measured_cv(self)
         self.crtk_utils.add_servo_cf(self)
         self.duration = 10 # 10 seconds
-        self.rate = 200    # aiming for 200 Hz
+        self.rate = 500    # aiming for 200 Hz
         self.samples = self.duration * self.rate
 
     # main loop
     def run(self):
         self.running = True
         while (self.running):
-            print ('\n- q: quit\n- p: print position\n- b: virtual box around current position with linear forces (10s)\n')
+            print ('\n- q: quit\n- p: print position, velocity\n- b: virtual box around current position with linear forces (10s)\n- v: viscosity (10s)')
             answer = raw_input('Enter your choice and [enter] to continue\n')
             if answer == 'q':
                 self.running = False
@@ -59,14 +60,17 @@ class crtk_haptic_example:
                 self.run_print()
             elif answer == 'b':
                 self.run_box()
+            elif answer == 'v':
+                self.run_viscosity()
             else:
                 print('Invalid choice\n')
 
-    # just print current positions
+    # print current position
     def run_print(self):
         print(self.measured_cp())
+        print(self.measured_cv())
 
-    # update base on linear forces
+    # virtual box
     def run_box(self):
         # save current position
         dim = 0.02
@@ -82,6 +86,19 @@ class crtk_haptic_example:
                     wrench[d] = p_gain * (distance - dim)
                 elif  (distance < -dim):
                     wrench[d] = p_gain * (distance + dim)
+            self.servo_cf(wrench)
+            rospy.sleep(1.0 / self.rate)
+        wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self.servo_cf(wrench)
+
+    # viscosity
+    def run_viscosity(self):
+        d_gain = -5.0
+        for i in xrange(self.samples):
+            wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            # foreach d dimension x, y, z
+            for d in xrange(3):
+                wrench[d] = d_gain * self.measured_cv()[d]
             self.servo_cf(wrench)
             rospy.sleep(1.0 / self.rate)
         wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
