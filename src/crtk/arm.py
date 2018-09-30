@@ -24,6 +24,7 @@ class arm(object):
         self.__crtk_utils = crtk.utils(ros_namespace + arm_name)
 
         # add crtk features that we need and are supported by the dVRK
+        self.__crtk_utils.add_device_state(self)
         self.__crtk_utils.add_setpoint_js(self)
         self.__crtk_utils.add_setpoint_cp(self)
         self.__crtk_utils.add_measured_js(self)

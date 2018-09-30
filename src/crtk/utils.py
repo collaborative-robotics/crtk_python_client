@@ -11,13 +11,12 @@
 
 # --- end cisst license ---
 
-import inspect
 import threading
-import math
 
 import rospy
 import numpy
 import PyKDL
+import std_msgs.msg
 import geometry_msgs.msg
 import sensor_msgs.msg
 
@@ -71,14 +70,66 @@ class utils:
         self.__measured_cp_data = PyKDL.Frame()
         self.__measured_cv_data = numpy.zeros(6, dtype = numpy.float)
         self.__measured_cf_data = numpy.zeros(6, dtype = numpy.float)
+        # thread event for blocking commands
+        self.__device_state_event = threading.Event()
 
+
+
+    # internal methods to manage state
+    def __device_state_cb(self, msg):
+        self.__device_state_data = msg.data
+        self.__device_state_event.set()
+
+    def __device_state(self):
+        return self.__device_state_data
+
+    def __device_state_wait(self, state, timeout):
+        self.__device_state_event.wait(timeout)
+        if self.__device_state_data == state:
+            return True
+        return False
+
+    def __set_device_state(self, state, timeout = 0):
+        # clear timeout
+        self.__device_state_event.clear()
+        # convert to ROS msg and publish
+        msg = std_msgs.msg.String()
+        msg.data = state
+        # publish and wait
+        self.__set_device_state_publisher.publish(msg)
+        return self.__device_state_wait(state, timeout)
+
+    def __enable(self, timeout = 0):
+        return self.__set_device_state('ENABLED', timeout)
+
+    def __disable(self, timeout = 0):
+        return self.__set_device_state('DISABLED', timeout)
+
+    def add_device_state(self, class_instance):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(class_instance, 'device_state'):
+            raise RuntimeWarning('device_state already exists')
+        # create the subscriber/publisher and keep in list
+        self.__device_state_subscriber = rospy.Subscriber(self.__ros_namespace + '/device_state',
+                                                          std_msgs.msg.String, self.__device_state_cb)
+        self.__subscribers.append(self.__device_state_subscriber)
+        self.__set_device_state_publisher = rospy.Publisher(self.__ros_namespace + '/set_device_state',
+                                                            std_msgs.msg.String, latch = True, queue_size = 1)
+        self.__publishers.append(self.__set_device_state_publisher)
+        # add attributes to class instance
+        class_instance.device_state = self.__device_state
+        class_instance.set_device_state = self.__set_device_state
+        class_instance.device_state_wait = self.__device_state_wait
+        class_instance.enable = self.__enable
+        class_instance.disable = self.__disable
 
     # internal methods for setpoint_js
-    def __setpoint_js_cb(self, data):
-        self.__setpoint_jp_data.resize(len(data.position))
-        self.__setpoint_jf_data.resize(len(data.effort))
-        self.__setpoint_jp_data.flat[:] = data.position
-        self.__setpoint_jf_data.flat[:] = data.effort
+    def __setpoint_js_cb(self, msg):
+        self.__setpoint_jp_data.resize(len(msg.position))
+        self.__setpoint_jf_data.resize(len(msg.effort))
+        self.__setpoint_jp_data.flat[:] = msg.position
+        self.__setpoint_jf_data.flat[:] = msg.effort
 
     def __setpoint_jp(self):
         return self.__setpoint_jp_data
@@ -102,7 +153,7 @@ class utils:
 
     # internal methods for setpoint_cp
     def __setpoint_cp_cb(self, data):
-        self.__setpoint_cp_data = TransformFromMsg(data.transform)
+        self.__setpoint_cp_data = TransformFromMsg(msg.transform)
 
     def __setpoint_cp(self):
         return self.__setpoint_cp_data
@@ -121,13 +172,13 @@ class utils:
 
 
     # internal methods for measured_js
-    def __measured_js_cb(self, data):
-        self.__measured_jp_data.resize(len(data.position))
-        self.__measured_jv_data.resize(len(data.position))
-        self.__measured_jf_data.resize(len(data.effort))
-        self.__measured_jp_data.flat[:] = data.position
-        self.__measured_jv_data.flat[:] = data.velocity
-        self.__measured_jf_data.flat[:] = data.effort
+    def __measured_js_cb(self, msg):
+        self.__measured_jp_data.resize(len(msg.position))
+        self.__measured_jv_data.resize(len(msg.position))
+        self.__measured_jf_data.resize(len(msg.effort))
+        self.__measured_jp_data.flat[:] = msg.position
+        self.__measured_jv_data.flat[:] = msg.velocity
+        self.__measured_jf_data.flat[:] = msg.effort
 
     def __measured_jp(self):
         return self.__measured_jp_data
@@ -155,8 +206,8 @@ class utils:
 
 
     # internal methods for measured_cp
-    def __measured_cp_cb(self, data):
-        self.__measured_cp_data = TransformFromMsg(data.transform)
+    def __measured_cp_cb(self, msg):
+        self.__measured_cp_data = TransformFromMsg(msg.transform)
 
     def __measured_cp(self):
         return self.__measured_cp_data
@@ -175,13 +226,13 @@ class utils:
 
 
     # internal methods for measured_cv
-    def __measured_cv_cb(self, data):
-        self.__measured_cv_data[0] = data.twist.linear.x
-        self.__measured_cv_data[1] = data.twist.linear.y
-        self.__measured_cv_data[2] = data.twist.linear.z
-        self.__measured_cv_data[3] = data.twist.angular.x
-        self.__measured_cv_data[4] = data.twist.angular.y
-        self.__measured_cv_data[5] = data.twist.angular.z
+    def __measured_cv_cb(self, msg):
+        self.__measured_cv_data[0] = msg.twist.linear.x
+        self.__measured_cv_data[1] = msg.twist.linear.y
+        self.__measured_cv_data[2] = msg.twist.linear.z
+        self.__measured_cv_data[3] = msg.twist.angular.x
+        self.__measured_cv_data[4] = msg.twist.angular.y
+        self.__measured_cv_data[5] = msg.twist.angular.z
 
     def __measured_cv(self):
         return self.__measured_cv_data
@@ -200,13 +251,13 @@ class utils:
 
 
     # internal methods for measured_cf
-    def __measured_cf_cb(self, data):
-        self.__measured_cf_data[0] = data.wrench.force.x
-        self.__measured_cf_data[1] = data.wrench.force.y
-        self.__measured_cf_data[2] = data.wrench.force.z
-        self.__measured_cf_data[3] = data.wrench.torque.x
-        self.__measured_cf_data[4] = data.wrench.torque.y
-        self.__measured_cf_data[5] = data.wrench.torque.z
+    def __measured_cf_cb(self, msg):
+        self.__measured_cf_data[0] = msg.wrench.force.x
+        self.__measured_cf_data[1] = msg.wrench.force.y
+        self.__measured_cf_data[2] = msg.wrench.force.z
+        self.__measured_cf_data[3] = msg.wrench.torque.x
+        self.__measured_cf_data[4] = msg.wrench.torque.y
+        self.__measured_cf_data[5] = msg.wrench.torque.z
 
     def __measured_cf(self):
         return self.__measured_cf_data
@@ -287,17 +338,6 @@ class utils:
 
 
 #     def __init_arm(self, arm_name, ros_namespace = '/dvrk/'):
-#         """Constructor.  This initializes a few data members.It
-#         requires a arm name, this will be used to find the ROS
-#         topics for the arm being controlled.  For example if the
-#         user wants `PSM1`, the ROS topics will be from the namespace
-#         `/dvrk/PSM1`"""
-#         # data members, event based
-#         self.__arm_name = arm_name
-#         self.__ros_namespace = ros_namespace
-#         self.__arm_current_state = ''
-#         self.__arm_current_state_event = threading.Event()
-#         self.__arm_desired_state = ''
 #         self.__goal_reached = False
 #         self.__goal_reached_event = threading.Event()
 
@@ -309,9 +349,6 @@ class utils:
 #         # publishers
 #         frame = PyKDL.Frame()
 #         self.__full_ros_namespace = self.__ros_namespace + self.__arm_name
-#         self.__set_arm_desired_state_pub = rospy.Publisher(self.__full_ros_namespace
-#                                                            + '/set_desired_state',
-#                                                            String, latch = True, queue_size = 1)
 #         self.__move_jp_pub = rospy.Publisher(self.__full_ros_namespace
 #                                              + '/move_jp',
 #                                              JointState, latch = True, queue_size = 1)
@@ -333,22 +370,6 @@ class utils:
 #         self.__set_gravity_compensation_pub = rospy.Publisher(self.__full_ros_namespace
 #                                                               + '/set_gravity_compensation',
 #                                                               Bool, latch = True, queue_size = 1)
-
-
-#     def __arm_current_state_cb(self, data):
-#         """Callback for arm current state.
-
-#         :param data: the current arm state"""
-#         self.__arm_current_state = data.data
-#         self.__arm_current_state_event.set()
-
-
-#     def __arm_desired_state_cb(self, data):
-#         """Callback for arm desired state.
-
-#         :param data: the desired arm state"""
-#         self.__arm_desired_state = data.data
-
 
 #     def __goal_reached_cb(self, data):
 #         """Callback for the goal reached.
@@ -372,54 +393,6 @@ class utils:
 #         jacobian = numpy.asarray(data.data)
 #         jacobian.shape = data.layout.dim[0].size, data.layout.dim[1].size
 #         self.__jacobian_body = jacobian
-
-#     def __set_desired_state(self, state, timeout = 5):
-#         """Set state with block.
-
-#         :param state: the desired arm state
-#         :param timeout: the amount of time you want to wait for arm to change state
-#         :return: whether or not the arm state has been successfuly set
-#         :rtype: Bool"""
-#         if (self.__arm_desired_state == state):
-#             return True
-#         self.__arm_current_state_event.clear()
-#         self.__set_arm_desired_state_pub.publish(state)
-#         self.__arm_current_state_event.wait(timeout)
-#         # if the state is not changed return False
-#         if (self.__arm_current_state != state):
-#             rospy.logfatal(rospy.get_caller_id() + ' -> failed to reach state ' + state)
-#             return False
-#         return True
-
-
-#     def name(self):
-#         return self.__arm_name
-
-
-#     def home(self):
-#         """This method will provide power to the arm and will home
-#         the arm."""
-#         # if we already received a state
-#         if (self.__arm_current_state == 'READY'):
-#             return
-#         self.__arm_current_state_event.clear()
-#         self.__set_arm_desired_state_pub.publish('READY')
-#         counter = 10 # up to 10 transitions to get ready
-#         while (counter > 0):
-#             self.__arm_current_state_event.wait(20) # give up to 20 secs for each transition
-#             if (self.__arm_current_state != 'READY'):
-#                 self.__arm_current_state_event.clear()
-#                 counter = counter - 1
-#             else:
-#                 counter = -1
-#         if (self.__arm_current_state != 'READY'):
-#             rospy.logfatal(rospy.get_caller_id() + ' -> failed to reach state READY')
-
-
-#     def shutdown(self):
-#         """Stop providing power to the arm."""
-#         self.__set_desired_state('UNINITIALIZED', 20)
-
 
 #     def get_arm_current_state(self):
 #         """Get the arm current state.

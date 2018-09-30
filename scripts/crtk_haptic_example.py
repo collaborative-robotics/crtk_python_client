@@ -41,21 +41,28 @@ class crtk_haptic_example:
         print(rospy.get_caller_id(), ' -> configuring crtk_device_test for ', device_namespace)
         # populate this class with all the ROS topics we need
         self.crtk_utils = crtk.utils(device_namespace)
+        self.crtk_utils.add_device_state(self)
         self.crtk_utils.add_measured_cp(self)
         self.crtk_utils.add_measured_cv(self)
         self.crtk_utils.add_servo_cf(self)
+        # for all examples
         self.duration = 10 # 10 seconds
         self.rate = 500    # aiming for 200 Hz
         self.samples = self.duration * self.rate
 
     # main loop
     def run(self):
+        if not self.enable(60):
+            print("Unable to enable the device, make sure it is connected.")
+            return
+
         self.running = True
         while (self.running):
             print ('\n- q: quit\n- p: print position, velocity\n- b: virtual box around current position with linear forces (10s)\n- v: viscosity (10s)')
             answer = raw_input('Enter your choice and [enter] to continue\n')
             if answer == 'q':
                 self.running = False
+                self.disable()
             elif answer == 'p':
                 self.run_print()
             elif answer == 'b':
