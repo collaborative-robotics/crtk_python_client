@@ -261,6 +261,30 @@ class utils:
         # add attributes to class instance
         class_instance.servo_cp = self.__servo_cp
 
+    # internal methods for servo_cf
+    def __servo_cf(self, setpoint):
+        # convert to ROS msg and publish
+        msg = geometry_msgs.msg.WrenchStamped()
+        msg.wrench.force.x = setpoint[0]
+        msg.wrench.force.y = setpoint[1]
+        msg.wrench.force.z = setpoint[2]
+        msg.wrench.torque.x = setpoint[3]
+        msg.wrench.torque.y = setpoint[4]
+        msg.wrench.torque.z = setpoint[5]
+        self.__servo_cf_publisher.publish(msg)
+
+    def add_servo_cf(self, class_instance):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(class_instance, 'servo_cf'):
+            raise RuntimeWarning('servo_cf already exists')
+        # create the subscriber and keep in list
+        self.__servo_cf_publisher = rospy.Publisher(self.__ros_namespace + '/servo_cf',
+                                                    geometry_msgs.msg.WrenchStamped, latch = True, queue_size = 1)
+        self.__publishers.append(self.__servo_cf_publisher)
+        # add attributes to class instance
+        class_instance.servo_cf = self.__servo_cf
+
 
 #     def __init_arm(self, arm_name, ros_namespace = '/dvrk/'):
 #         """Constructor.  This initializes a few data members.It
@@ -300,9 +324,6 @@ class utils:
 #         self.__servo_jf_pub = rospy.Publisher(self.__full_ros_namespace
 #                                               + '/servo_jf',
 #                                               JointState, latch = True, queue_size = 1)
-#         self.__servo_cf_body_pub = rospy.Publisher(self.__full_ros_namespace
-#                                                    + '/servo_cf',
-#                                                    WrenchStamped, latch = True, queue_size = 1)
 #         self.__servo_cf_orientation_absolute_pub = rospy.Publisher(self.__full_ros_namespace
 #                                                                    + '/set_wrench_body_orientation_absolute',
 #                                                                    Bool, latch = True, queue_size = 1)
@@ -312,33 +333,6 @@ class utils:
 #         self.__set_gravity_compensation_pub = rospy.Publisher(self.__full_ros_namespace
 #                                                               + '/set_gravity_compensation',
 #                                                               Bool, latch = True, queue_size = 1)
-#         self.__pub_list = [self.__set_arm_desired_state_pub,
-#                            self.__servo_jp_pub,
-#                            self.__move_jp_pub,
-#                            self.__servo_cp_pub,
-#                            self.__move_cp_pub,
-#                            self.__servo_jf_pub,
-#                            self.__servo_cf_body_pub,
-#                            self.__servo_cf_orientation_absolute_pub,
-#                            self.__servo_cf_spatial_pub,
-#                            self.__set_gravity_compensation_pub]
-#         # subscribers
-#         self.__sub_list = [rospy.Subscriber(self.__full_ros_namespace + '/current_state',
-#                                             String, self.__arm_current_state_cb),
-#                            rospy.Subscriber(self.__full_ros_namespace + '/desired_state',
-#                                           String, self.__arm_desired_state_cb),
-#                            rospy.Subscriber(self.__full_ros_namespace + '/goal_reached',
-#                                           Bool, self.__goal_reached_cb),
-#                            rospy.Subscriber(self.__full_ros_namespace + '/jacobian_spatial',
-#                                           Float64MultiArray, self.__jacobian_spatial_cb),
-#                            rospy.Subscriber(self.__full_ros_namespace + '/jacobian_body',
-#                                           Float64MultiArray, self.__jacobian_body_cb)]
-
-#         # create node
-#         if not rospy.get_node_uri():
-#             rospy.init_node('arm_api', anonymous = True, log_level = rospy.WARN)
-#         else:
-#             rospy.logdebug(rospy.get_caller_id() + ' -> ROS already initialized')
 
 
 #     def __arm_current_state_cb(self, data):
@@ -815,34 +809,8 @@ class utils:
 #         self.__servo_cf_orientation_absolute_pub.publish(m)
 
 
-#     def servo_cf(self, force):
-#         "Apply a wrench with force only (body), torque is null"
-#         w = WrenchStamped()
-#         w.wrench.force.x = force[0]
-#         w.wrench.force.y = force[1]
-#         w.wrench.force.z = force[2]
-#         w.wrench.torque.x = 0.0
-#         w.wrench.torque.y = 0.0
-#         w.wrench.torque.z = 0.0
-#         self.__servo_cf_body_pub.publish(w)
-
-
 #     def set_gravity_compensation(self, gravity_compensation):
 #         "Turn on/off gravity compensation in cartesian effort mode"
 #         g = Bool()
 #         g.data = gravity_compensation
 #         self.__set_gravity_compensation_pub.publish(g)
-
-# # Unregister all publishers and subscribers for this instance
-#     def unregister(self, verbose=False):
-#         for sub in self.__sub_list:
-#             sub.unregister()
-#         if verbose:
-#             print 'Unregistered {} subs for {}'.format(self.__sub_list.__len__(), self.__arm_name)
-
-#         for pub in self.__pub_list:
-#             pub.unregister()
-#         if verbose:
-#             print 'Unregistered {} pubs for {}'.format(self.__pub_list.__len__(), self.__arm_name)
-
-# # to and from pose message
