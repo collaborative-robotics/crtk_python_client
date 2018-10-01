@@ -38,7 +38,7 @@ class crtk_haptic_example:
         if not rospy.get_node_uri():
             rospy.init_node('crtk_haptic_example', anonymous = True, log_level = rospy.WARN)
 
-        print(rospy.get_caller_id(), ' -> configuring crtk_device_test for ', device_namespace)
+        print(rospy.get_caller_id() + ' -> configuring crtk_device_test for: ' + device_namespace)
         # populate this class with all the ROS topics we need
         self.crtk_utils = crtk.utils(device_namespace)
         self.crtk_utils.add_device_state(self)
@@ -80,8 +80,8 @@ class crtk_haptic_example:
     # virtual box
     def run_box(self):
         # save current position
-        dim = 0.02
-        p_gain = -50.0
+        dim = 0.01 # 2 cm cube
+        p_gain = -500.0
         center = PyKDL.Frame()
         center.p = self.measured_cp().p
         for i in xrange(self.samples):
@@ -100,7 +100,7 @@ class crtk_haptic_example:
 
     # viscosity
     def run_viscosity(self):
-        d_gain = -5.0
+        d_gain = -50.0
         for i in xrange(self.samples):
             wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             # foreach d dimension x, y, z
