@@ -97,6 +97,8 @@ class utils:
         msg.data = state
         # publish and wait
         self.__set_device_state_publisher.publish(msg)
+        if timeout == 0:
+            return True
         return self.__device_state_wait(state, timeout)
 
     def __enable(self, timeout = 0):
@@ -111,6 +113,7 @@ class utils:
         if hasattr(class_instance, 'device_state'):
             raise RuntimeWarning('device_state already exists')
         # create the subscriber/publisher and keep in list
+        self.__device_state_data = ''
         self.__device_state_subscriber = rospy.Subscriber(self.__ros_namespace + '/device_state',
                                                           std_msgs.msg.String, self.__device_state_cb)
         self.__subscribers.append(self.__device_state_subscriber)
@@ -152,7 +155,7 @@ class utils:
 
 
     # internal methods for setpoint_cp
-    def __setpoint_cp_cb(self, data):
+    def __setpoint_cp_cb(self, msg):
         self.__setpoint_cp_data = TransformFromMsg(msg.transform)
 
     def __setpoint_cp(self):
