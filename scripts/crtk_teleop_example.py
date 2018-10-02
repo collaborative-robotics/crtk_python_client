@@ -45,6 +45,7 @@ class crtk_teleop_example:
             self.crtk = crtk.utils(namespace)
             self.crtk.add_device_state(self)
             self.crtk.add_setpoint_cp(self)
+            self.crtk.add_servo_cp(self)
 
     # configuration
     def configure(self, master_namespace, puppet_namespace):
@@ -94,23 +95,26 @@ class crtk_teleop_example:
     # position based teleop
     def run_teleop(self):
         # save current position
-        dim = 0.02
-        p_gain = -50.0
-        center = PyKDL.Frame()
-        center.p = self.measured_cp().p
-        # for i in xrange(self.samples):
-        #     wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        #     # foreach d dimension x, y, z
-        #     for d in xrange(3):
-        #         distance = self.measured_cp().p[d] - center.p[d]
-        #         if (distance > dim):
-        #             wrench[d] = p_gain * (distance - dim)
-        #         elif  (distance < -dim):
-        #             wrench[d] = p_gain * (distance + dim)
-        #     self.servo_cf(wrench)
-        #     rospy.sleep(1.0 / self.rate)
-        # wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        # self.servo_cf(wrench)
+        scale = 0.5
+        # record where we started, only positions
+        start_master = PyKDL.Frame()
+        start_master.p = self.master.measured_cp().p
+        start_puppet = PyKDL.Frame()
+        start_puppet.p = self.puppet.setpoint_cp().p
+        # create the target goal for the puppet, use current orientation
+        goal_puppet = PyKDL.Frame()
+        goal_puppet.M = self.puppet.setpoint_cp().M
+
+        # this should be defined usingros::param
+        rotation = PyKDL.Rotation()
+        # rotation for master Omni, puppet Falcon
+        rotation.DoRotX(math.pi / 2.0)
+        rotation.DoRotY(math.pi / 2.0)
+        # loop
+        for i in xrange(self.samples):
+            goal_puppet.p = start_puppet.p + scale * (rotation * (self.master.measured_cp().p - start_master.p))
+            self.puppet.servo_cp(goal_puppet)
+            rospy.sleep(1.0 / self.rate)
 
 # use the class now, i.e. main program
 if __name__ == '__main__':
