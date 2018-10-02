@@ -118,7 +118,8 @@ class utils:
                                                           std_msgs.msg.String, self.__device_state_cb)
         self.__subscribers.append(self.__device_state_subscriber)
         self.__set_device_state_publisher = rospy.Publisher(self.__ros_namespace + '/set_device_state',
-                                                            std_msgs.msg.String, latch = True, queue_size = 1)
+                                                            std_msgs.msg.String,
+                                                            latch = True, queue_size = 1)
         self.__publishers.append(self.__set_device_state_publisher)
         # add attributes to class instance
         class_instance.device_state = self.__device_state
@@ -147,7 +148,8 @@ class utils:
             raise RuntimeWarning('setpoint_js already exists')
         # create the subscriber and keep in list
         self.__setpoint_js_subscriber = rospy.Subscriber(self.__ros_namespace + '/setpoint_js',
-                                                         sensor_msgs.msg.JointState, self.__setpoint_js_cb)
+                                                         sensor_msgs.msg.JointState,
+                                                         self.__setpoint_js_cb)
         self.__subscribers.append(self.__setpoint_js_subscriber)
         # add attributes to class instance
         class_instance.setpoint_jp = self.__setpoint_jp
@@ -168,7 +170,8 @@ class utils:
             raise RuntimeWarning('setpoint_cp already exists')
         # create the subscriber and keep in list
         self.__setpoint_cp_subscriber = rospy.Subscriber(self.__ros_namespace + '/setpoint_cp',
-                                                         geometry_msgs.msg.TransformStamped, self.__setpoint_cp_cb)
+                                                         geometry_msgs.msg.TransformStamped,
+                                                         self.__setpoint_cp_cb)
         self.__subscribers.append(self.__setpoint_cp_subscriber)
         # add attributes to class instance
         class_instance.setpoint_cp = self.__setpoint_cp
@@ -199,7 +202,8 @@ class utils:
             raise RuntimeWarning('measured_js already exists')
         # create the subscriber and keep in list
         self.__measured_js_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_js',
-                                                         sensor_msgs.msg.JointState, self.__measured_js_cb)
+                                                         sensor_msgs.msg.JointState,
+                                                         self.__measured_js_cb)
         self.__subscribers.append(self.__measured_js_subscriber)
 
         # add attributes to class instance
@@ -222,7 +226,8 @@ class utils:
             raise RuntimeWarning('measured_cp already exists')
         # create the subscriber and keep in list
         self.__measured_cp_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_cp',
-                                                         geometry_msgs.msg.TransformStamped, self.__measured_cp_cb)
+                                                         geometry_msgs.msg.TransformStamped,
+                                                         self.__measured_cp_cb)
         self.__subscribers.append(self.__measured_cp_subscriber)
         # add attributes to class instance
         class_instance.measured_cp = self.__measured_cp
@@ -247,7 +252,8 @@ class utils:
             raise RuntimeWarning('measured_cv already exists')
         # create the subscriber and keep in list
         self.__measured_cv_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_cv',
-                                                         geometry_msgs.msg.TwistStamped, self.__measured_cv_cb)
+                                                         geometry_msgs.msg.TwistStamped,
+                                                         self.__measured_cv_cb)
         self.__subscribers.append(self.__measured_cv_subscriber)
         # add attributes to class instance
         class_instance.measured_cv = self.__measured_cv
@@ -272,7 +278,8 @@ class utils:
             raise RuntimeWarning('measured_cf already exists')
         # create the subscriber and keep in list
         self.__measured_cf_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_cf',
-                                                         geometry_msgs.msg.TwistStamped, self.__measured_cf_cb)
+                                                         geometry_msgs.msg.TwistStamped,
+                                                         self.__measured_cf_cb)
         self.__subscribers.append(self.__measured_cf_subscriber)
         # add attributes to class instance
         class_instance.measured_cf = self.__measured_cf
@@ -292,7 +299,8 @@ class utils:
             raise RuntimeWarning('servo_jp already exists')
         # create the subscriber and keep in list
         self.__servo_jp_publisher = rospy.Publisher(self.__ros_namespace + '/servo_jp',
-                                                    sensor_msgs.msg.JointState, latch = True, queue_size = 1)
+                                                    sensor_msgs.msg.JointState,
+                                                    latch = True, queue_size = 1)
         self.__publishers.append(self.__servo_jp_publisher)
         # add attributes to class instance
         class_instance.servo_jp = self.__servo_jp
@@ -310,7 +318,8 @@ class utils:
             raise RuntimeWarning('servo_cp already exists')
         # create the subscriber and keep in list
         self.__servo_cp_publisher = rospy.Publisher(self.__ros_namespace + '/servo_cp',
-                                                    geometry_msgs.msg.TransformStamped, latch = True, queue_size = 1)
+                                                    geometry_msgs.msg.TransformStamped,
+                                                    latch = True, queue_size = 1)
         self.__publishers.append(self.__servo_cp_publisher)
         # add attributes to class instance
         class_instance.servo_cp = self.__servo_cp
@@ -334,7 +343,8 @@ class utils:
             raise RuntimeWarning('servo_cf already exists')
         # create the subscriber and keep in list
         self.__servo_cf_publisher = rospy.Publisher(self.__ros_namespace + '/servo_cf',
-                                                    geometry_msgs.msg.WrenchStamped, latch = True, queue_size = 1)
+                                                    geometry_msgs.msg.WrenchStamped,
+                                                    latch = True, queue_size = 1)
         self.__publishers.append(self.__servo_cf_publisher)
         # add attributes to class instance
         class_instance.servo_cf = self.__servo_cf
