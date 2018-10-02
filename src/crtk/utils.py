@@ -350,6 +350,26 @@ class utils:
         class_instance.servo_cf = self.__servo_cf
 
 
+    # internal methods for move_cp
+    def __move_cp(self, goal):
+        # convert to ROS msg and publish
+        msg = TransformToMsg(goal)
+        self.__move_cp_publisher.publish(msg)
+
+    def add_move_cp(self, class_instance):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(class_instance, 'move_cp'):
+            raise RuntimeWarning('move_cp already exists')
+        # create the subscriber and keep in list
+        self.__move_cp_publisher = rospy.Publisher(self.__ros_namespace + '/move_cp',
+                                                    geometry_msgs.msg.TransformStamped,
+                                                    latch = True, queue_size = 1)
+        self.__publishers.append(self.__move_cp_publisher)
+        # add attributes to class instance
+        class_instance.move_cp = self.__move_cp
+
+
 #     def __init_arm(self, arm_name, ros_namespace = '/dvrk/'):
 #         self.__goal_reached = False
 #         self.__goal_reached_event = threading.Event()
@@ -488,68 +508,6 @@ class utils:
 #         # add the incremental move to the current position, to get the ending frame
 #         end_frame = delta_frame * self.__setpoint_cp
 #         return self.__move_frame(end_frame, interpolate, blocking)
-
-
-#     def move(self, abs_input, interpolate = True, blocking = True):
-#         """Absolute translation in cartesian space.
-
-#         :param abs_input: the absolute translation you want to make
-#         :param interpolate: see  :ref:`interpolate <interpolate>`"""
-#         # is this a legal translation input
-#         if (self.__check_input_type(abs_input, [PyKDL.Vector, PyKDL.Rotation, PyKDL.Frame])):
-#             if (type(abs_input) is PyKDL.Vector):
-#                 return self.__move_translation(abs_input, interpolate, blocking)
-#             elif (type(abs_input) is PyKDL.Rotation):
-#                 return self.__move_rotation(abs_input, interpolate, blocking)
-#             elif (type(abs_input) is PyKDL.Frame):
-#                 return self.__move_frame(abs_input, interpolate, blocking)
-
-
-#     def __move_translation(self, abs_translation, interpolate = True, blocking = True):
-#         """Absolute translation in cartesian space.
-
-#         :param abs_translation: the absolute translation you want to make based on the current position, this is in terms of a  `PyKDL.Vector <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_
-#         :param interpolate: see  :ref:`interpolate <interpolate>`"""
-#         # convert into a Frame
-#         abs_rotation = self.__setpoint_cp.M
-#         abs_frame = PyKDL.Frame(abs_rotation, abs_translation)
-#         return self.__move_frame(abs_frame, interpolate, blocking)
-
-
-#     def __move_rotation(self, abs_rotation, interpolate = True, blocking = True):
-#         """Absolute rotation in cartesian space.
-
-#         :param abs_rotation: the absolute `PyKDL.Rotation <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_
-#         :param interpolate: see  :ref:`interpolate <interpolate>`"""
-#         # convert into a Frame
-#         abs_vector = self.__setpoint_cp.p
-#         abs_frame = PyKDL.Frame(abs_rotation, abs_vector)
-#         return self.__move_frame(abs_frame, interpolate, blocking)
-
-
-#     def __move_frame(self, abs_frame, interpolate = True, blocking = True):
-#         """Absolute move by PyKDL.Frame in Cartesian space.
-
-#         :param abs_frame: the absolute `PyKDL.Frame <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_
-#         :param interpolate: see  :ref:`interpolate <interpolate>`"""
-#         # move based on value of interpolate
-#         if (interpolate):
-#             return self.__move_cartesian_goal(abs_frame, blocking)
-#         else:
-#             return self.__move_cartesian_direct(abs_frame)
-
-
-#     def __move_cartesian_direct(self, end_frame):
-#         """Move the arm to the end position by passing the trajectory generator.
-
-#         :param end_frame: the ending `PyKDL.Frame <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_
-#         :returns: true if you had successfully move
-#         :rtype: Bool"""
-#         # set in position cartesian mode
-#         end_position = TransformToMsg(end_frame)
-#         # go to that position directly
-#         self.__servo_cp_pub.publish(end_position)
-#         return True
 
 
 #     def __move_cartesian_goal(self, end_frame, blocking):
