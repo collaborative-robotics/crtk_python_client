@@ -100,7 +100,7 @@ class crtk_haptic_example:
 
     # viscosity
     def run_viscosity(self):
-        d_gain = -50.0
+        d_gain = -10.0
         for i in xrange(self.samples):
             wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             # foreach d dimension x, y, z
