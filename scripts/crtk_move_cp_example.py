@@ -42,6 +42,7 @@ class crtk_move_cp_example:
         self.crtk_utils.add_device_state(self)
         self.crtk_utils.add_measured_cp(self)
         self.crtk_utils.add_move_cp(self)
+        self.crtk_utils.add_is_moving(self)
 
     def run_move_cp(self):
         if not self.enable(60):
@@ -58,10 +59,22 @@ class crtk_move_cp_example:
         amplitude = 0.01 # 2 centimeters
 
         # first move
-        goal.p[0] =  start_cp.p[0] + amplitude
-        goal.p[1] =  start_cp.p[1] + amplitude
+        goal.p[0] = start_cp.p[0] + amplitude
+        goal.p[1] = start_cp.p[1] + amplitude
+        goal.p[2] = start_cp.p[2]
         self.move_cp(goal)
-        rospy.sleep(30.0)
+        self.is_moving_wait(20)
+        # second move
+        goal.p[0] = start_cp.p[0] - amplitude
+        goal.p[1] = start_cp.p[1] - amplitude
+        self.move_cp(goal)
+        self.is_moving_wait(20)
+        # back to starting point
+        goal.p[0] = start_cp.p[0]
+        goal.p[1] = start_cp.p[1]
+        self.move_cp(goal)
+        self.is_moving_wait(20)
+
 
 # use the class now, i.e. main program
 if __name__ == '__main__':

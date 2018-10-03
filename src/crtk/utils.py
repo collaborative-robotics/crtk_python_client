@@ -12,6 +12,7 @@
 # --- end cisst license ---
 
 import threading
+import time
 
 import rospy
 import numpy
@@ -72,7 +73,7 @@ class utils:
         self.__measured_cf_data = numpy.zeros(6, dtype = numpy.float)
         # thread event for blocking commands
         self.__device_state_event = threading.Event()
-
+        self.__is_moving_event = threading.Event()
 
 
     # internal methods to manage state
@@ -127,6 +128,44 @@ class utils:
         class_instance.device_state_wait = self.__device_state_wait
         class_instance.enable = self.__enable
         class_instance.disable = self.__disable
+
+
+    # internal methods to detect moving status
+    def __is_moving_cb(self, msg):
+        self.__is_moving_data = msg.data
+        self.__is_moving_event.set()
+
+    def __is_moving(self):
+        return self.__is_moving_data
+
+    def __is_moving_wait(self, timeout):
+        start_time = time.time()
+        while True:
+            self.__is_moving_event.clear()
+            self.__is_moving_event.wait(timeout)
+            # if not moving we're good
+            if not self.__is_moving_data:
+                break
+            # otherwise, keep waiting a bit more
+            timeout = timeout - (time.time() - start_time)
+            if timeout <= 0:
+                break
+        return not self.__is_moving_data
+
+    def add_is_moving(self, class_instance):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(class_instance, 'is_moving'):
+            raise RuntimeWarning('is_moving already exists')
+        # create the subscriber/publisher and keep in list
+        self.__is_moving_data = False
+        self.__is_moving_subscriber = rospy.Subscriber(self.__ros_namespace + '/is_moving',
+                                                          std_msgs.msg.Bool, self.__is_moving_cb)
+        self.__subscribers.append(self.__is_moving_subscriber)
+        # add attributes to class instance
+        class_instance.is_moving = self.__is_moving
+        class_instance.is_moving_wait = self.__is_moving_wait
+
 
     # internal methods for setpoint_js
     def __setpoint_js_cb(self, msg):
@@ -378,22 +417,6 @@ class utils:
 #         self.__jacobian_spatial = numpy.ndarray(0, dtype = numpy.float)
 #         self.__jacobian_body = numpy.ndarray(0, dtype = numpy.float)
 
-
-#         # publishers
-#         frame = PyKDL.Frame()
-#         self.__full_ros_namespace = self.__ros_namespace + self.__arm_name
-#         self.__move_jp_pub = rospy.Publisher(self.__full_ros_namespace
-#                                              + '/move_jp',
-#                                              JointState, latch = True, queue_size = 1)
-#         self.__servo_cp_pub = rospy.Publisher(self.__full_ros_namespace
-#                                               + '/servo_cp',
-#                                               TransformStamped, latch = True, queue_size = 1)
-#         self.__move_cp_pub = rospy.Publisher(self.__full_ros_namespace
-#                                              + '/move_cp',
-#                                              TransformStamped, latch = True, queue_size = 1)
-#         self.__servo_jf_pub = rospy.Publisher(self.__full_ros_namespace
-#                                               + '/servo_jf',
-#                                               JointState, latch = True, queue_size = 1)
 #         self.__servo_cf_orientation_absolute_pub = rospy.Publisher(self.__full_ros_namespace
 #                                                                    + '/set_wrench_body_orientation_absolute',
 #                                                                    Bool, latch = True, queue_size = 1)
