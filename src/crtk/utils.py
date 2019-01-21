@@ -1,7 +1,7 @@
 #  Author(s):  Anton Deguet
 #  Created on: 2018-02-15
 
-# (C) Copyright 2018 Johns Hopkins University (JHU), All Rights Reserved.
+# (C) Copyright 2018-2019 Johns Hopkins University (JHU), All Rights Reserved.
 
 # --- begin cisst license - do not edit ---
 
@@ -344,6 +344,7 @@ class utils:
         # add attributes to class instance
         class_instance.servo_jp = self.__servo_jp
 
+
     # internal methods for servo_cp
     def __servo_cp(self, setpoint):
         # convert to ROS msg and publish
@@ -362,6 +363,28 @@ class utils:
         self.__publishers.append(self.__servo_cp_publisher)
         # add attributes to class instance
         class_instance.servo_cp = self.__servo_cp
+
+
+    # internal methods for servo_jf
+    def __servo_jf(self, setpoint):
+        # convert to ROS msg and publish
+        msg = sensor_msgs.msg.JointState()
+        msg.effort[:] = setpoint.flat
+        self.__servo_jf_publisher.publish(msg)
+
+    def add_servo_jf(self, class_instance):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(class_instance, 'servo_jf'):
+            raise RuntimeWarning('servo_jf already exists')
+        # create the subscriber and keep in list
+        self.__servo_jf_publisher = rospy.Publisher(self.__ros_namespace + '/servo_jf',
+                                                    sensor_msgs.msg.JointState,
+                                                    latch = True, queue_size = 1)
+        self.__publishers.append(self.__servo_jf_publisher)
+        # add attributes to class instance
+        class_instance.servo_jf = self.__servo_jf
+
 
     # internal methods for servo_cf
     def __servo_cf(self, setpoint):
@@ -389,6 +412,27 @@ class utils:
         class_instance.servo_cf = self.__servo_cf
 
 
+    # internal methods for move_jp
+    def __move_jp(self, setpoint):
+        # convert to ROS msg and publish
+        msg = sensor_msgs.msg.JointState()
+        msg.position[:] = setpoint.flat
+        self.__move_jp_publisher.publish(msg)
+
+    def add_move_jp(self, class_instance):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(class_instance, 'move_jp'):
+            raise RuntimeWarning('move_jp already exists')
+        # create the subscriber and keep in list
+        self.__move_jp_publisher = rospy.Publisher(self.__ros_namespace + '/move_jp',
+                                                   sensor_msgs.msg.JointState,
+                                                   latch = True, queue_size = 1)
+        self.__publishers.append(self.__move_jp_publisher)
+        # add attributes to class instance
+        class_instance.move_jp = self.__move_jp
+
+
     # internal methods for move_cp
     def __move_cp(self, goal):
         # convert to ROS msg and publish
@@ -407,377 +451,3 @@ class utils:
         self.__publishers.append(self.__move_cp_publisher)
         # add attributes to class instance
         class_instance.move_cp = self.__move_cp
-
-
-#     def __init_arm(self, arm_name, ros_namespace = '/dvrk/'):
-#         self.__goal_reached = False
-#         self.__goal_reached_event = threading.Event()
-
-#         # continuous publish from dvrk_bridge
-#         self.__jacobian_spatial = numpy.ndarray(0, dtype = numpy.float)
-#         self.__jacobian_body = numpy.ndarray(0, dtype = numpy.float)
-
-#         self.__servo_cf_orientation_absolute_pub = rospy.Publisher(self.__full_ros_namespace
-#                                                                    + '/set_wrench_body_orientation_absolute',
-#                                                                    Bool, latch = True, queue_size = 1)
-#         self.__servo_cf_spatial_pub = rospy.Publisher(self.__full_ros_namespace
-#                                                       + '/servo_cf',
-#                                                       WrenchStamped, latch = True, queue_size = 1)
-#         self.__set_gravity_compensation_pub = rospy.Publisher(self.__full_ros_namespace
-#                                                               + '/set_gravity_compensation',
-#                                                               Bool, latch = True, queue_size = 1)
-
-#     def __goal_reached_cb(self, data):
-#         """Callback for the goal reached.
-
-#         :param data: the goal reached"""
-#         self.__goal_reached = data.data
-#         self.__goal_reached_event.set()
-
-#     def __jacobian_spatial_cb(self, data):
-#         """Callback for the Jacobian in spatial frame.
-
-#         :param data: Jacobian."""
-#         jacobian = numpy.asarray(data.data)
-#         jacobian.shape = data.layout.dim[0].size, data.layout.dim[1].size
-#         self.__jacobian_spatial = jacobian
-
-#     def __jacobian_body_cb(self, data):
-#         """Callback for the Jacobian in spatial frame.
-
-#         :param data: Jacobian."""
-#         jacobian = numpy.asarray(data.data)
-#         jacobian.shape = data.layout.dim[0].size, data.layout.dim[1].size
-#         self.__jacobian_body = jacobian
-
-#     def get_arm_current_state(self):
-#         """Get the arm current state.
-#         :returns: the arm current state
-#         :rtype: string"""
-#         return self.__arm_current_state
-
-
-#     def get_arm_desired_state(self):
-#         """Get the arm desired state.
-#         :returns: the arm desired state
-#         :rtype: string"""
-#         return self.__arm_desired_state
-
-#     def get_jacobian_spatial(self):
-#         """Get the :ref:`jacobian spatial` of the arm.
-
-#         :returns: the jacobian spatial of the arm
-#         :rtype: `numpy.ndarray <https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html>`_"""
-#         return self.__jacobian_spatial
-
-#     def get_jacobian_body(self):
-#         """Get the :ref:`jacobian body` of the arm.
-
-#         :returns: the jacobian body of the arm
-#         :rtype: `numpy.ndarray <https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html>`_"""
-#         return self.__jacobian_body
-
-#     def get_joint_number(self):
-#         """Get the number of joints on the arm specified.
-
-#         :returns: the number of joints on the specified arm
-#         :rtype: int"""
-#         joint_num = len(self.__setpoint_jp)
-#         return joint_num
-
-#     def dmove(self, delta_input, interpolate = True, blocking = True):
-#         """Incremental motion in cartesian space.
-
-#         :param delta_input: the incremental motion you want to make
-#         :param interpolate: see  :ref:`interpolate <interpolate>`
-#         """
-#         # is this a legal translation input
-#         if (self.__check_input_type(delta_input, [PyKDL.Vector, PyKDL.Rotation, PyKDL.Frame])):
-#             if (type(delta_input) is PyKDL.Vector):
-#                 return self.__dmove_translation(delta_input, interpolate, blocking)
-#             elif (type(delta_input) is PyKDL.Rotation):
-#                 return self.__dmove_rotation(delta_input, interpolate, blocking)
-#             elif (type(delta_input) is PyKDL.Frame):
-#                 return self.__dmove_frame(delta_input, interpolate, blocking)
-
-
-#     def __dmove_translation(self, delta_translation, interpolate = True, blocking = True):
-#         """Incremental translation (using PYKDL Vector) in cartesian space.
-
-#         :param delta_translation: the incremental translation you want to make based on the current position, this is in terms of a  `PyKDL.Vector <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_
-#         :param interpolate: see  :ref:`interpolate <interpolate>`"""
-#         # convert into a Frame
-#         delta_rotation = PyKDL.Rotation.Identity()
-#         delta_frame = PyKDL.Frame(delta_rotation, delta_translation)
-#         return self.__dmove_frame(delta_frame, interpolate, blocking)
-
-
-#     def __dmove_rotation(self, delta_rotation, interpolate = True, blocking = True):
-#         """Incremental rotation (using PyKDL Rotation) in cartesian plane.
-
-#         :param delta_rotation: the incremental `PyKDL.Rotation <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_ based upon the current position
-#         :param interpolate: see  :ref:`interpolate <interpolate>`"""
-#         # convert into a Frame
-#         delta_vector = PyKDL.Vector(0.0, 0.0, 0.0)
-#         delta_frame = PyKDL.Frame(delta_rotation, delta_vector)
-#         return self.__dmove_frame(delta_frame, interpolate, blocking)
-
-
-#     def __dmove_frame(self, delta_frame, interpolate = True, blocking = True):
-#         """Incremental move (using PyKDL Frame) in cartesian plane.
-
-#         :param delta_frame: the incremental `PyKDL.Frame <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_ based upon the current position
-#         :param interpolate: see  :ref:`interpolate <interpolate>`"""
-#         # add the incremental move to the current position, to get the ending frame
-#         end_frame = delta_frame * self.__setpoint_cp
-#         return self.__move_frame(end_frame, interpolate, blocking)
-
-
-#     def __move_cartesian_goal(self, end_frame, blocking):
-#         """Move the arm to the end position by providing a goal for trajectory generator.
-
-#         :param end_frame: the ending `PyKDL.Frame <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_
-#         :returns: true if you had succesfully move
-#         :rtype: Bool"""
-#         # set in position cartesian mode
-#         end_position= TransformToMsg(end_frame)
-#         # go to that position by goal
-#         if blocking:
-#             return self.__set_position_goal_cartesian_publish_and_wait(end_position)
-#         else:
-#             self.__move_cp_pub.publish(end_position)
-#         return True
-
-
-#     def __set_position_goal_cartesian_publish_and_wait(self, end_position):
-#         """Wrapper around publisher/subscriber to manage events for cartesian coordinates.
-
-#         :param end_position: the ending `PyKDL.Frame <http://docs.ros.org/diamondback/api/kdl/html/python/geometric_primitives.html>`_
-#         :returns: returns true if the goal is reached
-#         :rtype: Bool"""
-#         self.__goal_reached_event.clear()
-#         # the goal is originally not reached
-#         self.__goal_reached = False
-#         # recursively call this function until end is reached
-#         self.__move_cp_pub.publish(end_position)
-#         self.__goal_reached_event.wait(20) # 1 minute at most
-#         if not self.__goal_reached:
-#             return False
-#         return True
-
-
-#     def dmove_joint(self, delta_pos, interpolate = True, blocking = True):
-#         """Incremental move in joint space.
-
-#         :param delta_pos: the incremental amount in which you want to move index by, this is in terms of a numpy array
-#         :param interpolate: see  :ref:`interpolate <interpolate>`"""
-#         if ((not(type(delta_pos) is numpy.ndarray))
-#              or (not(delta_pos.dtype == numpy.float64))):
-#             print "delta_pos must be an array of floats"
-#             return False
-#         if (not(delta_pos.size ==  self.get_joint_number())):
-#             print "delta_pos must be an array of size", self.get_joint_number()
-#             return False
-
-#         abs_pos = numpy.array(self.__setpoint_jp)
-#         abs_pos = abs_pos+ delta_pos
-#         return self.__move_joint(abs_pos, interpolate, blocking)
-
-
-#     def dmove_joint_one(self, delta_pos, indices, interpolate = True, blocking = True):
-#         """Incremental index move of 1 joint in joint space.
-
-#         :param delta_pos: the incremental amount in which you want to move index by, this is a float
-#         :param index: the joint you want to move, this is an integer
-#         :param interpolate: see  :ref:`interpolate <interpolate>`"""
-#         if (type(delta_pos) is float and type(indices) is int):
-#             return self.dmove_joint_some(numpy.array([delta_pos]), numpy.array([indices]), interpolate, blocking)
-#         else:
-#             return False
-
-
-#     def dmove_joint_some(self, delta_pos, indices, interpolate = True, blocking = True):
-#         """Incremental index move of a series of joints in joint space.
-
-#         :param delta_pos: the incremental amount in which you want to move index by, this is a numpy array corresponding to the number of indices
-#         :param indices: the joints you want to move, this is a numpy array of indices
-#         :param interpolate: see  :ref:`interpolate <interpolate>`"""
-
-#         # check if delta is an array
-#         if ((not(type(delta_pos) is numpy.ndarray))
-#              or (not(delta_pos.dtype == numpy.float64))):
-#             print "delta_pos must be an array of floats"
-#             return False
-
-#         # check the length of the delta move
-#         if ((not(type(indices) is numpy.ndarray))
-#             or (not(indices.dtype == numpy.int64))):
-#             print "indices must be an array of integers"
-#             return False
-
-#         if ((not(indices.size == delta_pos.size))
-#             or (indices.size > self.get_joint_number())):
-#             print "size of delta_pos and indices must match and be less than", self.get_joint_number()
-#             return False
-
-#         for i in range(indices.size):
-#             if (indices[i] > self.get_joint_number()):
-#                 print "all indices must be less than", self.get_joint_number()
-#                 return False
-
-#         abs_pos = numpy.array(self.__setpoint_jp)
-#         for i in range(len(indices)):
-#             abs_pos[indices[i]] = abs_pos[indices[i]] + delta_pos[i]
-
-#         # move accordingly
-#         return self.__move_joint(abs_pos, interpolate, blocking)
-
-
-#     def move_joint(self, abs_pos, interpolate = True, blocking = True):
-#         """Absolute move in joint space.
-
-#         :param abs_pos: the absolute position in which you want to move, this is a numpy array
-#         :param interpolate: see  :ref:`interpolate <interpolate>`"""
-
-#         if ((not(type(abs_pos) is numpy.ndarray))
-#             or (not(abs_pos.dtype == numpy.float64))):
-#             print "abs_pos must be an array of floats"
-#             return False
-#         if (not(abs_pos.size == self.get_joint_number())):
-#             print "abs_pos must be an array of size", self.get_joint_number()
-#             return False
-
-#         return self.__move_joint(abs_pos, interpolate, blocking)
-
-
-#     def move_joint_one(self, abs_pos, joint_index, interpolate = True, blocking = True):
-#         """Absolute index move of 1 joint in joint space.
-
-#         :param value: the absolute amount in which you want to move index by, this is a list
-#         :param index: the joint you want to move, this is a list
-#         :param interpolate: see  :ref:`interpolate <interpolate>`"""
-#         if ((type(abs_pos) is float) and (type(joint_index) is int)):
-#             return self.move_joint_some(numpy.array([abs_pos]), numpy.array([joint_index]), interpolate, blocking)
-#         else:
-#             return False
-
-
-#     def move_joint_some(self, abs_pos, indices, interpolate = True, blocking = True):
-#         """Absolute index move of a series of joints in joint space.
-
-#         :param value: the absolute amount in which you want to move index by, this is a list
-#         :param index: the joint you want to move, this is a list
-#         :param interpolate: see  :ref:`interpolate <interpolate>`"""
-
-#         if ((not(type(abs_pos) is numpy.ndarray))
-#             or (not(abs_pos.dtype == numpy.float64))):
-#             print "delta_pos must be an array of floats"
-#             return False
-
-#         # check the length of the delta move
-#         if ((not(type(indices) is numpy.ndarray))
-#             or (not(indices.dtype == numpy.int64))):
-#             print "indices must be an array of integers"
-#             return False
-
-#         if ((not(indices.size == abs_pos.size))
-#             or (indices.size > self.get_joint_number())):
-#             print "size of delta_pos and indices must match and be less than", self.get_joint_number()
-#             return False
-
-#         for i in range(indices.size):
-#             if (indices[i] > self.get_joint_number()):
-#                 print "all indices must be less than", self.get_joint_number()
-#                 return False
-
-#         abs_pos_result = numpy.array(self.__setpoint_jp)
-#         for i in range(len(indices)):
-#             abs_pos_result[indices[i]] = abs_pos[i]
-
-#         # move accordingly
-#         return self.__move_joint(abs_pos_result, interpolate, blocking)
-
-
-#     def __move_joint(self, abs_joint, interpolate = True, blocking = True):
-#         """Absolute move by vector in joint plane.
-
-#         :param abs_joint: the absolute position of the joints in terms of a numpy array
-#         :param interpolate: if false the trajectory generator will be used; if true you can bypass the trajectory generator"""
-#         if (interpolate):
-#             return self.__move_joint_goal(abs_joint, blocking)
-#         else:
-#             return self.__move_joint_direct(abs_joint)
-
-
-
-#     def __move_joint_goal(self, end_joint, blocking):
-#         """Move the arm to the end vector by bypassing the trajectory generator.
-
-#         :param end_joint: the list of joints in which you should conclude movement
-#         :returns: true if you had succesfully move
-#         :rtype: Bool"""
-#         joint_state = JointState()
-#         joint_state.position[:] = end_joint.flat
-#         if blocking:
-#             return self.__set_position_goal_joint_publish_and_wait(joint_state)
-#         else:
-#             self.__move_jp_pub.publish(joint_state)
-#         return True
-
-
-#     def __set_position_goal_joint_publish_and_wait(self, end_position):
-#         """Wrapper around publisher/subscriber to manage events for joint coordinates.
-
-#         :param end_position: there is only one parameter, end_position which tells us what the ending position is
-#         :returns: whether or not you have successfully moved by goal or not
-#         :rtype: Bool"""
-#         self.__goal_reached_event.clear()
-#         self.__goal_reached = False
-#         self.__move_jp_pub.publish(end_position)
-#         self.__goal_reached_event.wait(20) # 1 minute at most
-#         if not self.__goal_reached:
-#             return False
-#         return True
-
-
-#     def servo_jf(self, effort):
-#         if ((not(type(effort) is numpy.ndarray))
-#             or (not(effort.dtype == numpy.float64))):
-#             print "effort must be an array of floats"
-#             return False
-#         if (not(effort.size == self.get_joint_number())):
-#             print "effort must be an array of size", self.get_joint_number()
-#             return False
-#         joint_state = JointState()
-#         joint_state.effort[:] = effort.flat
-#         self.__servo_jf_pub.publish(joint_state)
-#         return True
-
-
-#     def servo_cf_spatial(self, force):
-#         """Apply a wrench with force only (spatial), torque is null
-
-#         :param force: the new force to set it to
-#         """
-#         w = WrenchStamped()
-#         w.wrench.force.x = force[0]
-#         w.wrench.force.y = force[1]
-#         w.wrench.force.z = force[2]
-#         w.wrench.torque.x = 0.0
-#         w.wrench.torque.y = 0.0
-#         w.wrench.torque.z = 0.0
-#         self.__servo_cf_spatial_pub.publish(w)
-
-
-#     def servo_cf_body_orientation_absolute(self, absolute):
-#         """Apply body wrench using body orientation (relative/False) or reference frame (absolute/True)"""
-#         m = Bool()
-#         m.data = absolute
-#         self.__servo_cf_orientation_absolute_pub.publish(m)
-
-
-#     def set_gravity_compensation(self, gravity_compensation):
-#         "Turn on/off gravity compensation in cartesian effort mode"
-#         g = Bool()
-#         g.data = gravity_compensation
-#         self.__set_gravity_compensation_pub.publish(g)
