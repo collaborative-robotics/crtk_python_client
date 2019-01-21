@@ -57,10 +57,12 @@ def TransformToMsg(f):
 
 
 class utils:
-    def __init__(self, ros_namespace):
+    def __init__(self, class_instance, ros_namespace):
+        self.__class_instance = class_instance
         self.__ros_namespace = ros_namespace
         self.__subscribers = []
         self.__publishers = []
+        self.__attributes = []
         # internal data for subscriber callbacks
         self.__setpoint_jp_data = numpy.array(0, dtype = numpy.float)
         self.__setpoint_jf_data = numpy.array(0, dtype = numpy.float)
@@ -74,6 +76,22 @@ class utils:
         # thread event for blocking commands
         self.__device_state_event = threading.Event()
         self.__is_moving_event = threading.Event()
+
+
+    def __del__(self):
+        print("del called")
+        self.remove_all()
+
+
+    def remove_all(self):
+        for sub in self.__subscribers:
+            sub.unregister()
+        for pub in self.__publishers:
+            pub.unregister()
+        for attr in self.__attributes:
+            dir(self.__class_instance)
+            delattr(self.__class_instance, attr)
+            dir(self.__class_instance)
 
 
     # internal methods to manage state

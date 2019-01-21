@@ -29,6 +29,10 @@ import PyKDL
 # example of application using arm.py
 class example_application:
 
+    def __del__(self):
+        print ("delete application")
+        delattr(self, 'arm')
+
     # configuration
     def configure(self, robot_name):
         print(rospy.get_caller_id(), ' -> configuring crtk_arm_test for ', robot_name)
