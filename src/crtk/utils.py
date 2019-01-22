@@ -20,7 +20,7 @@ import PyKDL
 import std_msgs.msg
 import geometry_msgs.msg
 import sensor_msgs.msg
-
+import crtk_msgs.msg
 
 def TransformFromMsg(t):
     """
@@ -74,8 +74,8 @@ class utils:
         self.__measured_cv_data = numpy.zeros(6, dtype = numpy.float)
         self.__measured_cf_data = numpy.zeros(6, dtype = numpy.float)
         # thread event for blocking commands
-        self.__device_state_event = threading.Event()
-        self.__is_moving_event = threading.Event()
+        self.__operating_state_event = threading.Event()
+        self.__is_busy_event = threading.Event()
 
 
     def __del__(self):
@@ -95,94 +95,94 @@ class utils:
 
 
     # internal methods to manage state
-    def __device_state_cb(self, msg):
-        self.__device_state_data = msg.data
-        self.__device_state_event.set()
+    def __operating_state_cb(self, msg):
+        # crtk operating state contains state as well as homed and busy
+        self.__operating_state_data = msg
+        self.__operating_state_event.set()
+        # busy
+        self.__is_busy_data = msg.is_busy
 
-    def __device_state(self):
-        return self.__device_state_data
+    def __operating_state(self):
+        return self.__operating_state_data.state
 
-    def __device_state_wait(self, state, timeout):
-        self.__device_state_event.wait(timeout)
-        if self.__device_state_data == state:
-            return True
+    def __operating_state_wait(self, state, timeout):
+        if timeout < 0.0:
+            return False
+        start_time = time.time()
+        in_time = self.__operating_state_event.wait(timeout)
+        if in_time:
+            # within timeout and result we expected
+            if self.__operating_state_data.state == state:
+                return True
+            else:
+                # wait a bit more
+                elapsed_time = time.time() - start_time
+                self.__operating_state_event.clear()
+                return self.__operating_state_wait(state, timeout - elapsed_time)
+        # past timeout
         return False
 
-    def __set_device_state(self, state, timeout = 0):
+    def __set_operating_state(self, state, timeout = 0):
+        # skip useless requests
+        if self.__operating_state_data.state == state:
+            return True
         # clear timeout
-        self.__device_state_event.clear()
+        self.__operating_state_event.clear()
         # convert to ROS msg and publish
         msg = std_msgs.msg.String()
         msg.data = state
         # publish and wait
-        self.__set_device_state_publisher.publish(msg)
+        self.__set_operating_state_publisher.publish(msg)
         if timeout == 0:
             return True
-        return self.__device_state_wait(state, timeout)
+        return self.__operating_state_wait(state, timeout)
 
     def __enable(self, timeout = 0):
-        return self.__set_device_state('ENABLED', timeout)
+        return self.__set_operating_state('ENABLED', timeout)
 
     def __disable(self, timeout = 0):
-        return self.__set_device_state('DISABLED', timeout)
+        return self.__set_operating_state('DISABLED', timeout)
 
-    def add_device_state(self, class_instance):
-        # throw a warning if this has alread been added to the class,
-        # using the callback name to test
-        if hasattr(class_instance, 'device_state'):
-            raise RuntimeWarning('device_state already exists')
-        # create the subscriber/publisher and keep in list
-        self.__device_state_data = ''
-        self.__device_state_subscriber = rospy.Subscriber(self.__ros_namespace + '/device_state',
-                                                          std_msgs.msg.String, self.__device_state_cb)
-        self.__subscribers.append(self.__device_state_subscriber)
-        self.__set_device_state_publisher = rospy.Publisher(self.__ros_namespace + '/set_device_state',
-                                                            std_msgs.msg.String,
-                                                            latch = True, queue_size = 1)
-        self.__publishers.append(self.__set_device_state_publisher)
-        # add attributes to class instance
-        class_instance.device_state = self.__device_state
-        class_instance.set_device_state = self.__set_device_state
-        class_instance.device_state_wait = self.__device_state_wait
-        class_instance.enable = self.__enable
-        class_instance.disable = self.__disable
+    def __is_busy(self):
+        return self.__is_busy_data
 
-
-    # internal methods to detect moving status
-    def __is_moving_cb(self, msg):
-        self.__is_moving_data = msg.data
-        self.__is_moving_event.set()
-
-    def __is_moving(self):
-        return self.__is_moving_data
-
-    def __is_moving_wait(self, timeout):
+    def __is_busy_wait(self, timeout):
         start_time = time.time()
         while True:
-            self.__is_moving_event.clear()
-            self.__is_moving_event.wait(timeout)
-            # if not moving we're good
-            if not self.__is_moving_data:
+            self.__operating_state_event.clear()
+            self.__operating_state_event.wait(timeout)
+            # if not busy we're good
+            if not self.__is_busy_data:
                 break
             # otherwise, keep waiting a bit more
             timeout = timeout - (time.time() - start_time)
-            if timeout <= 0:
+            if timeout <= 0.0:
                 break
-        return not self.__is_moving_data
+        return not self.__is_busy_data
 
-    def add_is_moving(self, class_instance):
+    def add_operating_state(self, class_instance):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(class_instance, 'is_moving'):
-            raise RuntimeWarning('is_moving already exists')
+        if hasattr(class_instance, 'operating_state'):
+            raise RuntimeWarning('operating_state already exists')
         # create the subscriber/publisher and keep in list
-        self.__is_moving_data = False
-        self.__is_moving_subscriber = rospy.Subscriber(self.__ros_namespace + '/is_moving',
-                                                          std_msgs.msg.Bool, self.__is_moving_cb)
-        self.__subscribers.append(self.__is_moving_subscriber)
+        self.__operating_state_data = crtk_msgs.msg.robot_state()
+        self.__is_busy_data = False
+        self.__operating_state_subscriber = rospy.Subscriber(self.__ros_namespace + '/operating_state',
+                                                             crtk_msgs.msg.robot_state, self.__operating_state_cb)
+        self.__subscribers.append(self.__operating_state_subscriber)
+        self.__set_operating_state_publisher = rospy.Publisher(self.__ros_namespace + '/set_operating_state',
+                                                               std_msgs.msg.String,
+                                                               latch = True, queue_size = 1)
+        self.__publishers.append(self.__set_operating_state_publisher)
         # add attributes to class instance
-        class_instance.is_moving = self.__is_moving
-        class_instance.is_moving_wait = self.__is_moving_wait
+        class_instance.operating_state = self.__operating_state
+        class_instance.set_operating_state = self.__set_operating_state
+        class_instance.operating_state_wait = self.__operating_state_wait
+        class_instance.enable = self.__enable
+        class_instance.disable = self.__disable
+        class_instance.is_busy = self.__is_busy
+        class_instance.is_busy_wait = self.__is_busy_wait
 
 
     # internal methods for setpoint_js
@@ -431,11 +431,13 @@ class utils:
 
 
     # internal methods for move_jp
-    def __move_jp(self, setpoint):
+    def __move_jp(self, setpoint, blocking = True, timeout = 300.0):
         # convert to ROS msg and publish
         msg = sensor_msgs.msg.JointState()
         msg.position[:] = setpoint.flat
         self.__move_jp_publisher.publish(msg)
+        if blocking:
+            self.__is_busy_wait(timeout)
 
     def add_move_jp(self, class_instance):
         # throw a warning if this has alread been added to the class,
@@ -452,10 +454,12 @@ class utils:
 
 
     # internal methods for move_cp
-    def __move_cp(self, goal):
+    def __move_cp(self, goal, blocking = True, timeout = 300.0):
         # convert to ROS msg and publish
         msg = TransformToMsg(goal)
         self.__move_cp_publisher.publish(msg)
+        if blocking:
+            self.__is_busy_wait(timeout)
 
     def add_move_cp(self, class_instance):
         # throw a warning if this has alread been added to the class,
