@@ -98,9 +98,10 @@ class utils:
     def __operating_state_cb(self, msg):
         # crtk operating state contains state as well as homed and busy
         self.__operating_state_data = msg
-        self.__operating_state_event.set()
         # busy
         self.__is_busy_data = msg.is_busy
+        # then when all data is saved, release "lock"
+        self.__operating_state_event.set()
 
     def __operating_state(self):
         return self.__operating_state_data.state
@@ -160,10 +161,10 @@ class utils:
                 break
         return not self.__is_busy_data
 
-    def add_operating_state(self, class_instance):
+    def add_operating_state(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(class_instance, 'operating_state'):
+        if hasattr(self.__class_instance, 'operating_state'):
             raise RuntimeWarning('operating_state already exists')
         # create the subscriber/publisher and keep in list
         self.__operating_state_data = crtk_msgs.msg.robot_state()
@@ -176,13 +177,13 @@ class utils:
                                                                latch = True, queue_size = 1)
         self.__publishers.append(self.__set_operating_state_publisher)
         # add attributes to class instance
-        class_instance.operating_state = self.__operating_state
-        class_instance.set_operating_state = self.__set_operating_state
-        class_instance.operating_state_wait = self.__operating_state_wait
-        class_instance.enable = self.__enable
-        class_instance.disable = self.__disable
-        class_instance.is_busy = self.__is_busy
-        class_instance.is_busy_wait = self.__is_busy_wait
+        self.__class_instance.operating_state = self.__operating_state
+        self.__class_instance.set_operating_state = self.__set_operating_state
+        self.__class_instance.operating_state_wait = self.__operating_state_wait
+        self.__class_instance.enable = self.__enable
+        self.__class_instance.disable = self.__disable
+        self.__class_instance.is_busy = self.__is_busy
+        self.__class_instance.is_busy_wait = self.__is_busy_wait
 
 
     # internal methods for setpoint_js
@@ -198,10 +199,10 @@ class utils:
     def __setpoint_jf(self):
         return self.__setpoint_jf_data
 
-    def add_setpoint_js(self, class_instance):
+    def add_setpoint_js(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(class_instance, 'setpoint_jp'):
+        if hasattr(self.__class_instance, 'setpoint_jp'):
             raise RuntimeWarning('setpoint_js already exists')
         # create the subscriber and keep in list
         self.__setpoint_js_subscriber = rospy.Subscriber(self.__ros_namespace + '/setpoint_js',
@@ -209,8 +210,8 @@ class utils:
                                                          self.__setpoint_js_cb)
         self.__subscribers.append(self.__setpoint_js_subscriber)
         # add attributes to class instance
-        class_instance.setpoint_jp = self.__setpoint_jp
-        class_instance.setpoint_jf = self.__setpoint_jf
+        self.__class_instance.setpoint_jp = self.__setpoint_jp
+        self.__class_instance.setpoint_jf = self.__setpoint_jf
 
 
     # internal methods for setpoint_cp
@@ -220,10 +221,10 @@ class utils:
     def __setpoint_cp(self):
         return self.__setpoint_cp_data
 
-    def add_setpoint_cp(self, class_instance):
+    def add_setpoint_cp(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(class_instance, 'setpoint_cp'):
+        if hasattr(self.__class_instance, 'setpoint_cp'):
             raise RuntimeWarning('setpoint_cp already exists')
         # create the subscriber and keep in list
         self.__setpoint_cp_subscriber = rospy.Subscriber(self.__ros_namespace + '/setpoint_cp',
@@ -231,7 +232,7 @@ class utils:
                                                          self.__setpoint_cp_cb)
         self.__subscribers.append(self.__setpoint_cp_subscriber)
         # add attributes to class instance
-        class_instance.setpoint_cp = self.__setpoint_cp
+        self.__class_instance.setpoint_cp = self.__setpoint_cp
 
 
     # internal methods for measured_js
@@ -252,10 +253,10 @@ class utils:
     def __measured_jf(self):
         return self.__measured_jf_data
 
-    def add_measured_js(self, class_instance):
+    def add_measured_js(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(class_instance, 'measured_jp'):
+        if hasattr(self.__class_instance, 'measured_jp'):
             raise RuntimeWarning('measured_js already exists')
         # create the subscriber and keep in list
         self.__measured_js_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_js',
@@ -264,9 +265,9 @@ class utils:
         self.__subscribers.append(self.__measured_js_subscriber)
 
         # add attributes to class instance
-        class_instance.measured_jp = self.__measured_jp
-        class_instance.measured_jv = self.__measured_jv
-        class_instance.measured_jf = self.__measured_jf
+        self.__class_instance.measured_jp = self.__measured_jp
+        self.__class_instance.measured_jv = self.__measured_jv
+        self.__class_instance.measured_jf = self.__measured_jf
 
 
     # internal methods for measured_cp
@@ -276,10 +277,10 @@ class utils:
     def __measured_cp(self):
         return self.__measured_cp_data
 
-    def add_measured_cp(self, class_instance):
+    def add_measured_cp(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(class_instance, 'measured_cp'):
+        if hasattr(self.__class_instance, 'measured_cp'):
             raise RuntimeWarning('measured_cp already exists')
         # create the subscriber and keep in list
         self.__measured_cp_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_cp',
@@ -287,7 +288,7 @@ class utils:
                                                          self.__measured_cp_cb)
         self.__subscribers.append(self.__measured_cp_subscriber)
         # add attributes to class instance
-        class_instance.measured_cp = self.__measured_cp
+        self.__class_instance.measured_cp = self.__measured_cp
 
 
     # internal methods for measured_cv
@@ -302,10 +303,10 @@ class utils:
     def __measured_cv(self):
         return self.__measured_cv_data
 
-    def add_measured_cv(self, class_instance):
+    def add_measured_cv(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(class_instance, 'measured_cv'):
+        if hasattr(self.__class_instance, 'measured_cv'):
             raise RuntimeWarning('measured_cv already exists')
         # create the subscriber and keep in list
         self.__measured_cv_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_cv',
@@ -313,7 +314,7 @@ class utils:
                                                          self.__measured_cv_cb)
         self.__subscribers.append(self.__measured_cv_subscriber)
         # add attributes to class instance
-        class_instance.measured_cv = self.__measured_cv
+        self.__class_instance.measured_cv = self.__measured_cv
 
 
     # internal methods for measured_cf
@@ -328,10 +329,10 @@ class utils:
     def __measured_cf(self):
         return self.__measured_cf_data
 
-    def add_measured_cf(self, class_instance):
+    def add_measured_cf(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(class_instance, 'measured_cf'):
+        if hasattr(self.__class_instance, 'measured_cf'):
             raise RuntimeWarning('measured_cf already exists')
         # create the subscriber and keep in list
         self.__measured_cf_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_cf',
@@ -339,7 +340,7 @@ class utils:
                                                          self.__measured_cf_cb)
         self.__subscribers.append(self.__measured_cf_subscriber)
         # add attributes to class instance
-        class_instance.measured_cf = self.__measured_cf
+        self.__class_instance.measured_cf = self.__measured_cf
 
 
     # internal methods for servo_jp
@@ -349,10 +350,10 @@ class utils:
         msg.position[:] = setpoint.flat
         self.__servo_jp_publisher.publish(msg)
 
-    def add_servo_jp(self, class_instance):
+    def add_servo_jp(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(class_instance, 'servo_jp'):
+        if hasattr(self.__class_instance, 'servo_jp'):
             raise RuntimeWarning('servo_jp already exists')
         # create the subscriber and keep in list
         self.__servo_jp_publisher = rospy.Publisher(self.__ros_namespace + '/servo_jp',
@@ -360,7 +361,7 @@ class utils:
                                                     latch = True, queue_size = 1)
         self.__publishers.append(self.__servo_jp_publisher)
         # add attributes to class instance
-        class_instance.servo_jp = self.__servo_jp
+        self.__class_instance.servo_jp = self.__servo_jp
 
 
     # internal methods for servo_cp
@@ -369,10 +370,10 @@ class utils:
         msg = TransformToMsg(setpoint)
         self.__servo_cp_publisher.publish(msg)
 
-    def add_servo_cp(self, class_instance):
+    def add_servo_cp(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(class_instance, 'servo_cp'):
+        if hasattr(self.__class_instance, 'servo_cp'):
             raise RuntimeWarning('servo_cp already exists')
         # create the subscriber and keep in list
         self.__servo_cp_publisher = rospy.Publisher(self.__ros_namespace + '/servo_cp',
@@ -380,7 +381,7 @@ class utils:
                                                     latch = True, queue_size = 1)
         self.__publishers.append(self.__servo_cp_publisher)
         # add attributes to class instance
-        class_instance.servo_cp = self.__servo_cp
+        self.__class_instance.servo_cp = self.__servo_cp
 
 
     # internal methods for servo_jf
@@ -390,10 +391,10 @@ class utils:
         msg.effort[:] = setpoint.flat
         self.__servo_jf_publisher.publish(msg)
 
-    def add_servo_jf(self, class_instance):
+    def add_servo_jf(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(class_instance, 'servo_jf'):
+        if hasattr(self.__class_instance, 'servo_jf'):
             raise RuntimeWarning('servo_jf already exists')
         # create the subscriber and keep in list
         self.__servo_jf_publisher = rospy.Publisher(self.__ros_namespace + '/servo_jf',
@@ -401,7 +402,7 @@ class utils:
                                                     latch = True, queue_size = 1)
         self.__publishers.append(self.__servo_jf_publisher)
         # add attributes to class instance
-        class_instance.servo_jf = self.__servo_jf
+        self.__class_instance.servo_jf = self.__servo_jf
 
 
     # internal methods for servo_cf
@@ -416,10 +417,10 @@ class utils:
         msg.wrench.torque.z = setpoint[5]
         self.__servo_cf_publisher.publish(msg)
 
-    def add_servo_cf(self, class_instance):
+    def add_servo_cf(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(class_instance, 'servo_cf'):
+        if hasattr(self.__class_instance, 'servo_cf'):
             raise RuntimeWarning('servo_cf already exists')
         # create the subscriber and keep in list
         self.__servo_cf_publisher = rospy.Publisher(self.__ros_namespace + '/servo_cf',
@@ -427,7 +428,7 @@ class utils:
                                                     latch = True, queue_size = 1)
         self.__publishers.append(self.__servo_cf_publisher)
         # add attributes to class instance
-        class_instance.servo_cf = self.__servo_cf
+        self.__class_instance.servo_cf = self.__servo_cf
 
 
     # internal methods for move_jp
@@ -439,10 +440,10 @@ class utils:
         if blocking:
             self.__is_busy_wait(timeout)
 
-    def add_move_jp(self, class_instance):
+    def add_move_jp(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(class_instance, 'move_jp'):
+        if hasattr(self.__class_instance, 'move_jp'):
             raise RuntimeWarning('move_jp already exists')
         # create the subscriber and keep in list
         self.__move_jp_publisher = rospy.Publisher(self.__ros_namespace + '/move_jp',
@@ -450,7 +451,7 @@ class utils:
                                                    latch = True, queue_size = 1)
         self.__publishers.append(self.__move_jp_publisher)
         # add attributes to class instance
-        class_instance.move_jp = self.__move_jp
+        self.__class_instance.move_jp = self.__move_jp
 
 
     # internal methods for move_cp
@@ -461,10 +462,10 @@ class utils:
         if blocking:
             self.__is_busy_wait(timeout)
 
-    def add_move_cp(self, class_instance):
+    def add_move_cp(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(class_instance, 'move_cp'):
+        if hasattr(self.__class_instance, 'move_cp'):
             raise RuntimeWarning('move_cp already exists')
         # create the subscriber and keep in list
         self.__move_cp_publisher = rospy.Publisher(self.__ros_namespace + '/move_cp',
@@ -472,4 +473,4 @@ class utils:
                                                     latch = True, queue_size = 1)
         self.__publishers.append(self.__move_cp_publisher)
         # add attributes to class instance
-        class_instance.move_cp = self.__move_cp
+        self.__class_instance.move_cp = self.__move_cp
