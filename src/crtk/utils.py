@@ -106,14 +106,14 @@ class utils:
     def __operating_state(self):
         return self.__operating_state_data.state
 
-    def __operating_state_wait(self, state, timeout):
+    def __wait_for_operating_state(self, expected_state, timeout):
         if timeout < 0.0:
             return False
         start_time = time.time()
         in_time = self.__operating_state_event.wait(timeout)
         if in_time:
             # within timeout and result we expected
-            if self.__operating_state_data.state == state:
+            if self.__operating_state_data.state == expected_state:
                 return True
             else:
                 # wait a bit more
@@ -123,26 +123,24 @@ class utils:
         # past timeout
         return False
 
-    def __set_operating_state(self, state, timeout = 0):
-        # skip useless requests
-        if self.__operating_state_data.state == state:
-            return True
+    def __operating_state_command(self, state):
         # clear timeout
         self.__operating_state_event.clear()
         # convert to ROS msg and publish
         msg = std_msgs.msg.String()
         msg.data = state
         # publish and wait
-        self.__set_operating_state_publisher.publish(msg)
-        if timeout == 0:
-            return True
-        return self.__operating_state_wait(state, timeout)
+        self.__operating_state_command_publisher.publish(msg)
 
     def __enable(self, timeout = 0):
-        return self.__set_operating_state('ENABLED', timeout)
+        self.__operating_state_event.clear()
+        self.__operating_state_command("enable")
+        return self.__wait_for_operating_state('ENABLED', timeout)
 
     def __disable(self, timeout = 0):
-        return self.__set_operating_state('DISABLED', timeout)
+        self.__operating_state_event.clear()
+        self.__operating_state_command("disable")
+        return self.__wait_for_operating_state('DISABLED', timeout)
 
     def __is_busy(self):
         return self.__is_busy_data
@@ -172,14 +170,14 @@ class utils:
         self.__operating_state_subscriber = rospy.Subscriber(self.__ros_namespace + '/operating_state',
                                                              crtk_msgs.msg.robot_state, self.__operating_state_cb)
         self.__subscribers.append(self.__operating_state_subscriber)
-        self.__set_operating_state_publisher = rospy.Publisher(self.__ros_namespace + '/set_operating_state',
-                                                               std_msgs.msg.String,
-                                                               latch = True, queue_size = 1)
-        self.__publishers.append(self.__set_operating_state_publisher)
+        self.__operating_state_command_publisher = rospy.Publisher(self.__ros_namespace + '/state_command',
+                                                                   std_msgs.msg.String,
+                                                                   latch = True, queue_size = 1)
+        self.__publishers.append(self.__operating_state_command_publisher)
         # add attributes to class instance
         self.__class_instance.operating_state = self.__operating_state
-        self.__class_instance.set_operating_state = self.__set_operating_state
-        self.__class_instance.operating_state_wait = self.__operating_state_wait
+        self.__class_instance.wait_for_operating_state = self.__wait_for_operating_state
+        self.__class_instance.operating_state_command = self.__operating_state_command
         self.__class_instance.enable = self.__enable
         self.__class_instance.disable = self.__disable
         self.__class_instance.is_busy = self.__is_busy

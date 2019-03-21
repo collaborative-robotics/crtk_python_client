@@ -40,11 +40,11 @@ class crtk_haptic_example:
 
         print(rospy.get_caller_id() + ' -> configuring crtk_device_test for: ' + device_namespace)
         # populate this class with all the ROS topics we need
-        self.crtk_utils = crtk.utils(device_namespace)
-        self.crtk_utils.add_device_state(self)
-        self.crtk_utils.add_measured_cp(self)
-        self.crtk_utils.add_measured_cv(self)
-        self.crtk_utils.add_servo_cf(self)
+        self.crtk_utils = crtk.utils(self, device_namespace)
+        self.crtk_utils.add_operating_state()
+        self.crtk_utils.add_measured_cp()
+        self.crtk_utils.add_measured_cv()
+        self.crtk_utils.add_servo_cf()
         # for all examples
         self.duration = 10 # 10 seconds
         self.rate = 500    # aiming for 200 Hz
