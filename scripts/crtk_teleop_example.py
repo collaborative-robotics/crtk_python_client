@@ -3,7 +3,7 @@
 # Author: Anton Deguet
 # Date: 2018-09-29
 
-# (C) Copyright 2018 Johns Hopkins University (JHU), All Rights Reserved.
+# (C) Copyright 2019 Johns Hopkins University (JHU), All Rights Reserved.
 
 # --- begin cisst license - do not edit ---
 
@@ -35,17 +35,17 @@ class crtk_teleop_example:
     # populate master with the ROS topics we need
     class Master:
         def __init__(self, namespace):
-            self.crtk = crtk.utils(namespace)
-            self.crtk.add_device_state(self)
-            self.crtk.add_measured_cp(self)
+            self.crtk = crtk.utils(self, namespace)
+            self.crtk.add_operating_state()
+            self.crtk.add_measured_cp()
 
     # populate puppet with the ROS topics we need
     class Puppet:
         def __init__(self, namespace):
-            self.crtk = crtk.utils(namespace)
-            self.crtk.add_device_state(self)
-            self.crtk.add_setpoint_cp(self)
-            self.crtk.add_servo_cp(self)
+            self.crtk = crtk.utils(self, namespace)
+            self.crtk.add_operating_state()
+            self.crtk.add_setpoint_cp()
+            self.crtk.add_servo_cp()
 
     # configuration
     def configure(self, master_namespace, puppet_namespace):
@@ -63,10 +63,10 @@ class crtk_teleop_example:
 
     # main loop
     def run(self):
-        if not self.master.enable(0):
+        if not self.master.enable(5.0):
             print("Unable to enable the master device, make sure it is connected.")
             return
-        if not self.puppet.enable(0):
+        if not self.puppet.enable(5.0):
             print("Unable to enable the puppet device, make sure it is connected.")
             return
 

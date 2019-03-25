@@ -3,7 +3,7 @@
 # Author: Anton Deguet
 # Date: 2015-02-22
 
-# (C) Copyright 2015-2018 Johns Hopkins University (JHU), All Rights Reserved.
+# (C) Copyright 2015-2019 Johns Hopkins University (JHU), All Rights Reserved.
 
 # --- begin cisst license - do not edit ---
 
@@ -38,11 +38,10 @@ class crtk_move_cp_example:
 
         print(rospy.get_caller_id() + ' -> configuring crtk_device_test for: ' + device_namespace)
         # populate this class with all the ROS topics we need
-        self.crtk_utils = crtk.utils(device_namespace)
-        self.crtk_utils.add_device_state(self)
-        self.crtk_utils.add_measured_cp(self)
-        self.crtk_utils.add_move_cp(self)
-        self.crtk_utils.add_is_moving(self)
+        self.crtk_utils = crtk.utils(self, device_namespace)
+        self.crtk_utils.add_operating_state()
+        self.crtk_utils.add_measured_cp()
+        self.crtk_utils.add_move_cp()
 
     def run_move_cp(self):
         if not self.enable(60):
@@ -63,17 +62,17 @@ class crtk_move_cp_example:
         goal.p[1] = start_cp.p[1] + amplitude
         goal.p[2] = start_cp.p[2]
         self.move_cp(goal)
-        self.is_moving_wait(20)
+        self.is_busy_wait(20)
         # second move
         goal.p[0] = start_cp.p[0] - amplitude
         goal.p[1] = start_cp.p[1] - amplitude
         self.move_cp(goal)
-        self.is_moving_wait(20)
+        self.is_busy_wait(20)
         # back to starting point
         goal.p[0] = start_cp.p[0]
         goal.p[1] = start_cp.p[1]
         self.move_cp(goal)
-        self.is_moving_wait(20)
+        self.is_busy_wait(20)
 
 
 # use the class now, i.e. main program
