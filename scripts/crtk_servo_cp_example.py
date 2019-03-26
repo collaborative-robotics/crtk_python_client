@@ -52,17 +52,21 @@ class crtk_servo_cp_example:
             print("Unable to enable the device, make sure it is connected.")
             return
 
+        if not self.measured_cp_wait(60):
+            print("Waited 60 seconds and didn't receive a measure_cp message, make sure it is connected.")
+            return
+
         # create a new goal starting with current position
-        start_cp = PyKDL.Frame()
-        start_cp.p = self.measured_cp().p
-        start_cp.M = self.measured_cp().M
+        start= PyKDL.Frame()
+        start.p = self.measured_cp().p
+        start.M = self.measured_cp().M
         goal = PyKDL.Frame()
         goal.p = self.measured_cp().p
         goal.M = self.measured_cp().M
         amplitude = 0.01 # 2 centimeters
         for i in xrange(self.samples):
-            goal.p[0] =  start_cp.p[0] + amplitude *  math.sin(i * math.radians(360.0) / self.samples)
-            goal.p[1] =  start_cp.p[1] + amplitude *  math.sin(i * math.radians(360.0) / self.samples)
+            goal.p[0] =  start.p[0] + amplitude *  math.sin(i * math.radians(360.0) / self.samples)
+            goal.p[1] =  start.p[1] + amplitude *  math.sin(i * math.radians(360.0) / self.samples)
             self.servo_cp(goal)
             rospy.sleep(1.0 / self.rate)
 

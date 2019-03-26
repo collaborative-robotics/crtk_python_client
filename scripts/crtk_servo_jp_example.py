@@ -38,10 +38,10 @@ class crtk_servo_jp_example:
 
         print(rospy.get_caller_id() + ' -> configuring crtk_device_test for: ' + device_namespace)
         # populate this class with all the ROS topics we need
-        self.crtk_utils = crtk.utils(device_namespace)
-        self.crtk_utils.add_device_state(self)
-        self.crtk_utils.add_measured_js(self)
-        self.crtk_utils.add_servo_jp(self)
+        self.crtk_utils = crtk.utils(self, device_namespace)
+        self.crtk_utils.add_operating_state()
+        self.crtk_utils.add_measured_js()
+        self.crtk_utils.add_servo_jp()
         # for all examples
         self.duration = 10 # 10 seconds
         self.rate = 500    # aiming for 200 Hz

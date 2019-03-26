@@ -71,6 +71,8 @@ class utils:
         self.__measured_jv_data = numpy.array(0, dtype = numpy.float)
         self.__measured_jf_data = numpy.array(0, dtype = numpy.float)
         self.__measured_cp_data = PyKDL.Frame()
+        self.__measured_cp_stamp = rospy.Time.now() - rospy.Duration(24*60*60) # mark data as one day old
+        self.__measured_cp_event = threading.Event()
         self.__measured_cv_data = numpy.zeros(6, dtype = numpy.float)
         self.__measured_cf_data = numpy.zeros(6, dtype = numpy.float)
         # thread event for blocking commands
@@ -119,7 +121,7 @@ class utils:
                 # wait a bit more
                 elapsed_time = time.time() - start_time
                 self.__operating_state_event.clear()
-                return self.__operating_state_wait(state, timeout - elapsed_time)
+                return self.__wait_for_operating_state(expected_state, timeout - elapsed_time)
         # past timeout
         return False
 
@@ -271,9 +273,18 @@ class utils:
     # internal methods for measured_cp
     def __measured_cp_cb(self, msg):
         self.__measured_cp_data = TransformFromMsg(msg.transform)
+        self.__measured_cp_stamp = msg.header.stamp
+        self.__measured_cp_event.set()
 
     def __measured_cp(self):
         return self.__measured_cp_data
+
+    def __measured_cp_time(self):
+        return self.__measured_cp_stamp
+
+    def __measured_cp_wait(self, timeout):
+        self.__measured_cp_event.clear()
+        return self.__measured_cp_event.wait(timeout)
 
     def add_measured_cp(self):
         # throw a warning if this has alread been added to the class,
@@ -287,6 +298,8 @@ class utils:
         self.__subscribers.append(self.__measured_cp_subscriber)
         # add attributes to class instance
         self.__class_instance.measured_cp = self.__measured_cp
+        self.__class_instance.measured_cp_time = self.__measured_cp_time
+        self.__class_instance.measured_cp_wait = self.__measured_cp_wait
 
 
     # internal methods for measured_cv
