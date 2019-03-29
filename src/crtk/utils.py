@@ -167,10 +167,10 @@ class utils:
         if hasattr(self.__class_instance, 'operating_state'):
             raise RuntimeWarning('operating_state already exists')
         # create the subscriber/publisher and keep in list
-        self.__operating_state_data = crtk_msgs.msg.robot_state()
+        self.__operating_state_data = crtk_msgs.msg.operating_state()
         self.__is_busy_data = False
         self.__operating_state_subscriber = rospy.Subscriber(self.__ros_namespace + '/operating_state',
-                                                             crtk_msgs.msg.robot_state, self.__operating_state_cb)
+                                                             crtk_msgs.msg.operating_state, self.__operating_state_cb)
         self.__subscribers.append(self.__operating_state_subscriber)
         self.__operating_state_command_publisher = rospy.Publisher(self.__ros_namespace + '/state_command',
                                                                    std_msgs.msg.String,
