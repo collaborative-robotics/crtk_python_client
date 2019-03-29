@@ -39,6 +39,11 @@ class crtk_teleop_example:
             self.crtk.add_operating_state()
             self.crtk.add_measured_cp()
 
+    class Gripper:
+        def __init__(self, namespace):
+            self.crtk = crtk.utils(self, namespace)
+            self.crtk.add_measured_js()
+
     # populate puppet with the ROS topics we need
     class Puppet:
         def __init__(self, namespace):
@@ -47,14 +52,26 @@ class crtk_teleop_example:
             self.crtk.add_setpoint_cp()
             self.crtk.add_servo_cp()
 
+    class Jaw:
+        def __init__(self, namespace):
+            self.crtk = crtk.utils(self, namespace)
+            self.crtk.add_setpoint_js()
+            self.crtk.add_servo_jp()
+
     # configuration
-    def configure(self, master_namespace, puppet_namespace):
+    def configure(self, master_namespace, puppet_namespace, gripper_namespace, jaw_namespace):
         # ROS initialization
         if not rospy.get_node_uri():
             rospy.init_node('crtk_teleop_example', anonymous = True, log_level = rospy.WARN)
 
         self.master = self.Master(master_namespace)
         self.puppet = self.Puppet(puppet_namespace)
+        self.has_gripper = False;
+
+        if ((gripper_namespace != '') and (jaw_namespace != '')):
+            self.has_gripper = True
+            self.gripper = self.Gripper(gripper_namespace)
+            self.jaw = self.Jaw(jaw_namespace)
 
         # for all examples
         self.duration = 10 # 10 seconds
@@ -94,37 +111,60 @@ class crtk_teleop_example:
 
     # position based teleop
     def run_teleop(self):
-        # save current position
+
+        # registration between master and puppet.  Ideally we don't
+        # use this, the devices should be able to set a base frame
+        registration_rotation = PyKDL.Frame()
+        # rotation from master Omni to puppet Falcon
+        # registration_rotation.M.DoRotX(math.pi / 2.0)
+        # registration_rotation.M.DoRotY(math.pi / 2.0)
+
+        # rotation from master Omni to puppet PSM
+        registration_rotation.M.DoRotZ(math.pi)
+        registration_rotation.M.DoRotX(math.pi / 2.0)
+
+        # scale (should be using ros::param)
         scale = 0.5
         # record where we started, only positions
-        start_master = PyKDL.Frame()
-        start_master.p = self.master.measured_cp().p
-        start_puppet = PyKDL.Frame()
-        start_puppet.p = self.puppet.setpoint_cp().p
+        start_master = PyKDL.Frame(registration_rotation.Inverse() * self.master.measured_cp())
+        start_puppet = PyKDL.Frame(self.puppet.setpoint_cp())
+
         # create the target goal for the puppet, use current orientation
         goal_puppet = PyKDL.Frame()
-        goal_puppet.M = self.puppet.setpoint_cp().M
 
-        # this should be defined usingros::param
-        rotation = PyKDL.Rotation()
-        # rotation for master Omni, puppet Falcon
-        rotation.DoRotX(math.pi / 2.0)
-        rotation.DoRotY(math.pi / 2.0)
+        # start only when gripper is close to jaw angle
+        gripper_started = False
+
         # loop
         for i in xrange(self.samples):
-            goal_puppet.p = start_puppet.p + scale * (rotation * (self.master.measured_cp().p - start_master.p))
+            # current master in puppet orientation
+            current_master = PyKDL.Frame(registration_rotation.Inverse() * self.master.measured_cp())
+            goal_puppet.p = start_puppet.p + scale * (current_master.p - start_master.p)
+            goal_puppet.M = current_master.M * start_master.M.Inverse() * start_puppet.M # this is not working yet!
             self.puppet.servo_cp(goal_puppet)
+            # gripper
+            if (self.has_gripper):
+                if (gripper_started):
+                    self.jaw.servo_jp(self.gripper.measured_jp())
+                else:
+                    if (abs(self.gripper.measured_jp()[0] - self.jaw.setpoint_jp()[0]) < math.radians(5.0)):
+                        gripper_started = True
             rospy.sleep(1.0 / self.rate)
 
 # use the class now, i.e. main program
 if __name__ == '__main__':
     try:
-        if (len(sys.argv) != 3):
-            print(sys.argv[0], ' requires two arguments, i.e. master and puppet namespaces')
-        else:
+        if (len(sys.argv) == 3):
             example = crtk_teleop_example()
-            example.configure(sys.argv[1], sys.argv[2])
+            example.configure(sys.argv[1], sys.argv[2], '', '')
             example.run()
+        else:
+            if (len(sys.argv) == 5):
+                example = crtk_teleop_example()
+                example.configure(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+                example.run()
+            else:
+                print(sys.argv[0], ' requires two or four arguments, i.e. master and puppet namespaces [master gripper and pupper jaw namespaces]')
 
     except rospy.ROSInterruptException:
         pass
