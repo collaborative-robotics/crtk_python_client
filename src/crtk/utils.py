@@ -64,6 +64,8 @@ class utils:
         self.__publishers = []
         self.__attributes = []
         # internal data for subscriber callbacks
+        self.__operating_state_data = crtk_msgs.msg.operating_state()
+        self.__operating_state_data_previous = crtk_msgs.msg.operating_state()
         self.__setpoint_jp_data = numpy.array(0, dtype = numpy.float)
         self.__setpoint_jf_data = numpy.array(0, dtype = numpy.float)
         self.__setpoint_cp_data = PyKDL.Frame()
@@ -77,11 +79,9 @@ class utils:
         self.__measured_cf_data = numpy.zeros(6, dtype = numpy.float)
         # thread event for blocking commands
         self.__operating_state_event = threading.Event()
-        self.__is_busy_event = threading.Event()
 
 
     def __del__(self):
-        print("del called")
         self.remove_all()
 
 
@@ -99,9 +99,9 @@ class utils:
     # internal methods to manage state
     def __operating_state_cb(self, msg):
         # crtk operating state contains state as well as homed and busy
+        self.__operating_state_data_previous = self.__operating_state_data
         self.__operating_state_data = msg
-        # busy
-        self.__is_busy_data = msg.is_busy
+        
         # then when all data is saved, release "lock"
         self.__operating_state_event.set()
 
@@ -145,21 +145,24 @@ class utils:
         return self.__wait_for_operating_state('DISABLED', timeout)
 
     def __is_busy(self):
-        return self.__is_busy_data
+        return self.__operating_state_data.is_busy
 
-    def __is_busy_wait(self, timeout):
+    def __wait_while_busy(self, timeout):
+        if timeout < 0.0:
+            return False
         start_time = time.time()
-        while True:
-            self.__operating_state_event.clear()
-            self.__operating_state_event.wait(timeout)
-            # if not busy we're good
-            if not self.__is_busy_data:
-                break
-            # otherwise, keep waiting a bit more
-            timeout = timeout - (time.time() - start_time)
-            if timeout <= 0.0:
-                break
-        return not self.__is_busy_data
+        self.__operating_state_event.clear()
+        in_time = self.__operating_state_event.wait(timeout)
+        if in_time:
+            # within timeout and result we expected
+            if self.__operating_state_data_previous.is_busy and not self.__operating_state_data.is_busy:
+                return True
+            else:
+                # wait a bit more
+                elapsed_time = time.time() - start_time
+                return self.__wait_while_busy(timeout - elapsed_time)
+        # past timeout
+        return False
 
     def add_operating_state(self):
         # throw a warning if this has alread been added to the class,
@@ -183,7 +186,7 @@ class utils:
         self.__class_instance.enable = self.__enable
         self.__class_instance.disable = self.__disable
         self.__class_instance.is_busy = self.__is_busy
-        self.__class_instance.is_busy_wait = self.__is_busy_wait
+        self.__class_instance.wait_while_busy = self.__wait_while_busy
 
 
     # internal methods for setpoint_js
@@ -282,7 +285,7 @@ class utils:
     def __measured_cp_time(self):
         return self.__measured_cp_stamp
 
-    def __measured_cp_wait(self, timeout):
+    def __measured_cp_valid(self, timeout):
         self.__measured_cp_event.clear()
         return self.__measured_cp_event.wait(timeout)
 
@@ -299,7 +302,7 @@ class utils:
         # add attributes to class instance
         self.__class_instance.measured_cp = self.__measured_cp
         self.__class_instance.measured_cp_time = self.__measured_cp_time
-        self.__class_instance.measured_cp_wait = self.__measured_cp_wait
+        self.__class_instance.measured_cp_valid = self.__measured_cp_valid
 
 
     # internal methods for measured_cv
@@ -443,13 +446,13 @@ class utils:
 
 
     # internal methods for move_jp
-    def __move_jp(self, setpoint, blocking = True, timeout = 300.0):
+    def __move_jp(self, setpoint, blocking = False, timeout = 300.0):
         # convert to ROS msg and publish
         msg = sensor_msgs.msg.JointState()
         msg.position[:] = setpoint.flat
         self.__move_jp_publisher.publish(msg)
         if blocking:
-            self.__is_busy_wait(timeout)
+            self.__wait_while_busy(timeout)
 
     def add_move_jp(self):
         # throw a warning if this has alread been added to the class,
@@ -466,12 +469,12 @@ class utils:
 
 
     # internal methods for move_cp
-    def __move_cp(self, goal, blocking = True, timeout = 300.0):
+    def __move_cp(self, goal, blocking = False, timeout = 300.0):
         # convert to ROS msg and publish
         msg = TransformToMsg(goal)
         self.__move_cp_publisher.publish(msg)
         if blocking:
-            self.__is_busy_wait(timeout)
+            self.__wait_while_busy(timeout)
 
     def add_move_cp(self):
         # throw a warning if this has alread been added to the class,

@@ -48,6 +48,10 @@ class crtk_move_cp_example:
             print("Unable to enable the device, make sure it is connected.")
             return
 
+        if not self.measured_cp_valid(60):
+            print("Waited 60 seconds and didn't receive a measure_cp message, make sure it is connected.")
+            return
+
         # create a new goal starting with current position
         start_cp = PyKDL.Frame()
         start_cp.p = self.measured_cp().p
@@ -62,17 +66,17 @@ class crtk_move_cp_example:
         goal.p[1] = start_cp.p[1] + amplitude
         goal.p[2] = start_cp.p[2]
         self.move_cp(goal)
-        self.is_busy_wait(20)
+        self.wait_while_busy(20)
         # second move
         goal.p[0] = start_cp.p[0] - amplitude
         goal.p[1] = start_cp.p[1] - amplitude
         self.move_cp(goal)
-        self.is_busy_wait(20)
+        self.wait_while_busy(20)
         # back to starting point
         goal.p[0] = start_cp.p[0]
         goal.p[1] = start_cp.p[1]
         self.move_cp(goal)
-        self.is_busy_wait(20)
+        self.wait_while_busy(20)
 
 
 # use the class now, i.e. main program
