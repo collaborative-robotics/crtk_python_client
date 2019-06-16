@@ -101,7 +101,7 @@ class utils:
         # crtk operating state contains state as well as homed and busy
         self.__operating_state_data_previous = self.__operating_state_data
         self.__operating_state_data = msg
-        
+
         # then when all data is saved, release "lock"
         self.__operating_state_event.set()
 
@@ -129,8 +129,8 @@ class utils:
         # clear timeout
         self.__operating_state_event.clear()
         # convert to ROS msg and publish
-        msg = std_msgs.msg.String()
-        msg.data = state
+        msg = crtk_msgs.msg.StringStamped()
+        msg.string = state
         # publish and wait
         self.__operating_state_command_publisher.publish(msg)
 
@@ -176,7 +176,7 @@ class utils:
                                                              crtk_msgs.msg.operating_state, self.__operating_state_cb)
         self.__subscribers.append(self.__operating_state_subscriber)
         self.__operating_state_command_publisher = rospy.Publisher(self.__ros_namespace + '/state_command',
-                                                                   std_msgs.msg.String,
+                                                                   crtk_msgs.msg.StringStamped,
                                                                    latch = True, queue_size = 1)
         self.__publishers.append(self.__operating_state_command_publisher)
         # add attributes to class instance
