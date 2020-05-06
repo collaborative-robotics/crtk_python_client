@@ -57,28 +57,16 @@ def TransformToMsg(f):
 
 
 class utils:
-    def __init__(self, class_instance, ros_namespace):
+    def __init__(self,
+                 class_instance,
+                 ros_namespace,
+                 expected_interval = 0.01):
         self.__class_instance = class_instance
         self.__ros_namespace = ros_namespace
+        self.__expected_interval = expected_interval
         self.__subscribers = []
         self.__publishers = []
         self.__attributes = []
-        # internal data for subscriber callbacks
-        self.__operating_state_data = crtk_msgs.msg.operating_state()
-        self.__operating_state_data_previous = crtk_msgs.msg.operating_state()
-        self.__setpoint_jp_data = numpy.array(0, dtype = numpy.float)
-        self.__setpoint_jf_data = numpy.array(0, dtype = numpy.float)
-        self.__setpoint_cp_data = PyKDL.Frame()
-        self.__measured_jp_data = numpy.array(0, dtype = numpy.float)
-        self.__measured_jv_data = numpy.array(0, dtype = numpy.float)
-        self.__measured_jf_data = numpy.array(0, dtype = numpy.float)
-        self.__measured_cp_data = PyKDL.Frame()
-        self.__measured_cp_stamp = rospy.Time.now() - rospy.Duration(24*60*60) # mark data as one day old
-        self.__measured_cp_event = threading.Event()
-        self.__measured_cv_data = numpy.zeros(6, dtype = numpy.float)
-        self.__measured_cf_data = numpy.zeros(6, dtype = numpy.float)
-        # thread event for blocking commands
-        self.__operating_state_event = threading.Event()
 
 
     def __del__(self):
@@ -94,6 +82,23 @@ class utils:
             dir(self.__class_instance)
             delattr(self.__class_instance, attr)
             dir(self.__class_instance)
+
+
+    def __wait_for_valid_data(self, data, event, age, wait):
+        event.clear()
+        if age == None:
+            age = self.__expected_interval
+        if wait == None:
+            wait = self.__expected_interval
+        # check if user accepts cached data
+        if age != 0.0:
+            data_age = rospy.Time.now() - data.header.stamp
+            if data_age <= rospy.Duration(age):
+                return True
+        if wait != 0.0:
+            if event.wait(wait):
+                return True
+        return False
 
 
     # internal methods to manage state
@@ -134,15 +139,63 @@ class utils:
         # publish and wait
         self.__operating_state_command_publisher.publish(msg)
 
+    def __is_enabled(self):
+        return self.__operating_state_data.state == 'ENABLED'
+
     def __enable(self, timeout = 0):
+        if self.__is_enabled():
+            self.__operating_state_command("enable")
+            return True
         self.__operating_state_event.clear()
         self.__operating_state_command("enable")
         return self.__wait_for_operating_state('ENABLED', timeout)
 
+    def __is_disabled(self):
+        return self.__operating_state_data.state == 'DISABLED'
+
     def __disable(self, timeout = 0):
+        if self.__is_disabled():
+            self.__operating_state_command("disable")
+            return True
         self.__operating_state_event.clear()
         self.__operating_state_command("disable")
         return self.__wait_for_operating_state('DISABLED', timeout)
+
+    def __is_homed(self):
+        return self.__operating_state_data.is_homed
+
+    def __wait_for_homed(self, timeout, expected_homed):
+        if timeout < 0.0:
+            return False
+        start_time = time.time()
+        self.__operating_state_event.clear()
+        in_time = self.__operating_state_event.wait(timeout)
+        if in_time:
+            # within timeout and result we expected
+            if self.__operating_state_data.is_homed == expected_homed:
+                return True
+            else:
+                # wait a bit more
+                elapsed_time = time.time() - start_time
+                return self.__wait_for_homed(timeout - elapsed_time, expected_homed)
+        # past timeout
+        return False
+
+    def __home(self, timeout = 0):
+        if self.__is_homed():
+            self.__operating_state_command("home")
+            return True
+        self.__operating_state_event.clear()
+        self.__operating_state_command("home")
+        return self.__wait_for_homed(timeout, True)
+
+    def __unhome(self, timeout = 0):
+        if not self.__is_homed():
+            self.__operating_state_command("unhome")
+            return True
+        self.__operating_state_event.clear()
+        self.__operating_state_command("unhome")
+        return self.__wait_for_homed(timeout, False)
 
     def __is_busy(self):
         return self.__operating_state_data.is_busy
@@ -169,9 +222,12 @@ class utils:
         # using the callback name to test
         if hasattr(self.__class_instance, 'operating_state'):
             raise RuntimeWarning('operating_state already exists')
-        # create the subscriber/publisher and keep in list
+        # data
         self.__operating_state_data = crtk_msgs.msg.operating_state()
-        self.__is_busy_data = False
+        self.__operating_state_data_previous = crtk_msgs.msg.operating_state()
+        self.__operating_state_event = threading.Event()
+
+        # create the subscriber/publisher and keep in list
         self.__operating_state_subscriber = rospy.Subscriber(self.__ros_namespace + '/operating_state',
                                                              crtk_msgs.msg.operating_state, self.__operating_state_cb)
         self.__subscribers.append(self.__operating_state_subscriber)
@@ -183,30 +239,51 @@ class utils:
         self.__class_instance.operating_state = self.__operating_state
         self.__class_instance.wait_for_operating_state = self.__wait_for_operating_state
         self.__class_instance.operating_state_command = self.__operating_state_command
+        self.__class_instance.is_enabled = self.__is_enabled
         self.__class_instance.enable = self.__enable
+        self.__class_instance.is_disabled = self.__is_disabled
         self.__class_instance.disable = self.__disable
+        self.__class_instance.home = self.__home
+        self.__class_instance.unhome = self.__unhome
+        self.__class_instance.is_homed = self.__is_homed
         self.__class_instance.is_busy = self.__is_busy
         self.__class_instance.wait_while_busy = self.__wait_while_busy
 
 
     # internal methods for setpoint_js
     def __setpoint_js_cb(self, msg):
-        self.__setpoint_jp_data.resize(len(msg.position))
-        self.__setpoint_jf_data.resize(len(msg.effort))
-        self.__setpoint_jp_data.flat[:] = msg.position
-        self.__setpoint_jf_data.flat[:] = msg.effort
+        self.__setpoint_js_data = msg
+        self.__setpoint_js_event.set()
 
-    def __setpoint_jp(self):
-        return self.__setpoint_jp_data
+    def __setpoint_jp(self, age = None, wait = None):
+        if self.__wait_for_valid_data(self.__setpoint_js_data,
+                                      self.__setpoint_js_event,
+                                      age, wait):
+            return numpy.array(self.__setpoint_js_data.position)
+        raise RuntimeWarning('unable to get setpoint_jp')
+
+    def __setpoint_jv(self):
+        if self.__wait_for_valid_data(self.__setpoint_js_data,
+                                      self.__setpoint_js_event,
+                                      age, wait):
+            return numpy.array(self.__setpoint_js_data.velocity)
+        raise RuntimeWarning('unable to get setpoint_jv')
 
     def __setpoint_jf(self):
-        return self.__setpoint_jf_data
+        if self.__wait_for_valid_data(self.__setpoint_js_data,
+                                      self.__setpoint_js_event,
+                                      age, wait):
+            return numpy.array(self.__setpoint_js_data.effort)
+        raise RuntimeWarning('unable to get setpoint_jf')
 
     def add_setpoint_js(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'setpoint_jp'):
             raise RuntimeWarning('setpoint_js already exists')
+        # data
+        self.__setpoint_js_data = sensor_msgs.msg.JointState()
+        self.__setpoint_js_event = threading.Event()
         # create the subscriber and keep in list
         self.__setpoint_js_subscriber = rospy.Subscriber(self.__ros_namespace + '/setpoint_js',
                                                          sensor_msgs.msg.JointState,
@@ -214,6 +291,7 @@ class utils:
         self.__subscribers.append(self.__setpoint_js_subscriber)
         # add attributes to class instance
         self.__class_instance.setpoint_jp = self.__setpoint_jp
+        self.__class_instance.setpoint_jv = self.__setpoint_jv
         self.__class_instance.setpoint_jf = self.__setpoint_jf
 
 
@@ -229,6 +307,8 @@ class utils:
         # using the callback name to test
         if hasattr(self.__class_instance, 'setpoint_cp'):
             raise RuntimeWarning('setpoint_cp already exists')
+        # data
+        self.__setpoint_cp_data = PyKDL.Frame()
         # create the subscriber and keep in list
         self.__setpoint_cp_subscriber = rospy.Subscriber(self.__ros_namespace + '/setpoint_cp',
                                                          geometry_msgs.msg.TransformStamped,
@@ -240,33 +320,43 @@ class utils:
 
     # internal methods for measured_js
     def __measured_js_cb(self, msg):
-        self.__measured_jp_data.resize(len(msg.position))
-        self.__measured_jv_data.resize(len(msg.position))
-        self.__measured_jf_data.resize(len(msg.effort))
-        self.__measured_jp_data.flat[:] = msg.position
-        self.__measured_jv_data.flat[:] = msg.velocity
-        self.__measured_jf_data.flat[:] = msg.effort
+        self.__measured_js_data = msg
+        self.__measured_js_event.set()
 
-    def __measured_jp(self):
-        return self.__measured_jp_data
+    def __measured_jp(self, age = None, wait = None):
+        if self.__wait_for_valid_data(self.__measured_js_data,
+                                      self.__measured_js_event,
+                                      age, wait):
+            return numpy.array(self.__measured_js_data.position)
+        raise RuntimeWarning('unable to get measured_jp')
 
     def __measured_jv(self):
-        return self.__measured_jv_data
+        if self.__wait_for_valid_data(self.__measured_js_data,
+                                      self.__measured_js_event,
+                                      age, wait):
+            return numpy.array(self.__measured_js_data.velocity)
+        raise RuntimeWarning('unable to get measured_jv')
 
     def __measured_jf(self):
-        return self.__measured_jf_data
+        if self.__wait_for_valid_data(self.__measured_js_data,
+                                      self.__measured_js_event,
+                                      age, wait):
+            return numpy.array(self.__measured_js_data.effort)
+        raise RuntimeWarning('unable to get measured_jf')
 
     def add_measured_js(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'measured_jp'):
             raise RuntimeWarning('measured_js already exists')
+        # data
+        self.__measured_js_data = sensor_msgs.msg.JointState()
+        self.__measured_js_event = threading.Event()
         # create the subscriber and keep in list
         self.__measured_js_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_js',
                                                          sensor_msgs.msg.JointState,
                                                          self.__measured_js_cb)
         self.__subscribers.append(self.__measured_js_subscriber)
-
         # add attributes to class instance
         self.__class_instance.measured_jp = self.__measured_jp
         self.__class_instance.measured_jv = self.__measured_jv
@@ -294,6 +384,10 @@ class utils:
         # using the callback name to test
         if hasattr(self.__class_instance, 'measured_cp'):
             raise RuntimeWarning('measured_cp already exists')
+        # data
+        self.__measured_cp_data = PyKDL.Frame()
+        self.__measured_cp_stamp = rospy.Time.now() - rospy.Duration(24*60*60) # mark data as one day old
+        self.__measured_cp_event = threading.Event()
         # create the subscriber and keep in list
         self.__measured_cp_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_cp',
                                                          geometry_msgs.msg.TransformStamped,
@@ -322,6 +416,8 @@ class utils:
         # using the callback name to test
         if hasattr(self.__class_instance, 'measured_cv'):
             raise RuntimeWarning('measured_cv already exists')
+        # data
+        self.__measured_cv_data = numpy.zeros(6, dtype = numpy.float)
         # create the subscriber and keep in list
         self.__measured_cv_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_cv',
                                                          geometry_msgs.msg.TwistStamped,
@@ -348,6 +444,8 @@ class utils:
         # using the callback name to test
         if hasattr(self.__class_instance, 'measured_cf'):
             raise RuntimeWarning('measured_cf already exists')
+        # data
+        self.__measured_cf_data = numpy.zeros(6, dtype = numpy.float)
         # create the subscriber and keep in list
         self.__measured_cf_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_cf',
                                                          geometry_msgs.msg.TwistStamped,
