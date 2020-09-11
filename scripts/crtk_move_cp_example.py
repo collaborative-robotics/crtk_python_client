@@ -48,10 +48,6 @@ class crtk_move_cp_example:
             print("Unable to enable the device, make sure it is connected.")
             return
 
-        if not self.measured_cp_valid(60):
-            print("Waited 60 seconds and didn't receive a measure_cp message, make sure it is connected.")
-            return
-
         # create a new goal starting with current position
         start_cp = PyKDL.Frame()
         start_cp.p = self.measured_cp().p

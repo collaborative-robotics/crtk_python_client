@@ -172,7 +172,7 @@ class utils:
         in_time = self.__operating_state_event.wait(timeout)
         if in_time:
             # within timeout and result we expected
-            if self.__operating_state_data.is_homed == expected_homed:
+            if (self.__operating_state_data.is_homed == expected_homed) and (not self.__operating_state_data.is_busy):
                 return True
             else:
                 # wait a bit more
@@ -297,10 +297,19 @@ class utils:
 
     # internal methods for setpoint_cp
     def __setpoint_cp_cb(self, msg):
-        self.__setpoint_cp_data = TransformFromMsg(msg.transform)
+        self.__setpoint_cp_lock = True
+        self.__setpoint_cp_data = msg
+        self.__setpoint_cp_lock = False
+        self.__setpoint_cp_event.set()
 
-    def __setpoint_cp(self):
-        return self.__setpoint_cp_data
+    def __setpoint_cp(self, age = None, wait = None):
+        if self.__wait_for_valid_data(self.__setpoint_cp_data,
+                                      self.__setpoint_cp_event,
+                                      age, wait):
+            if self.__setpoint_cp_lock:
+                print('--------------------- crap! -----------------')
+            return TransformFromMsg(self.__setpoint_cp_data.transform)
+        raise RuntimeWarning('unable to get setpoint_cp')
 
     def add_setpoint_cp(self):
         # throw a warning if this has alread been added to the class,
@@ -308,7 +317,9 @@ class utils:
         if hasattr(self.__class_instance, 'setpoint_cp'):
             raise RuntimeWarning('setpoint_cp already exists')
         # data
-        self.__setpoint_cp_data = PyKDL.Frame()
+        self.__setpoint_cp_data = geometry_msgs.msg.TransformStamped()
+        self.__setpoint_cp_event = threading.Event()
+        self.__setpoint_cp_lock = False
         # create the subscriber and keep in list
         self.__setpoint_cp_subscriber = rospy.Subscriber(self.__ros_namespace + '/setpoint_cp',
                                                          geometry_msgs.msg.TransformStamped,
@@ -330,14 +341,14 @@ class utils:
             return numpy.array(self.__measured_js_data.position)
         raise RuntimeWarning('unable to get measured_jp')
 
-    def __measured_jv(self):
+    def __measured_jv(self, age = None, wait = None):
         if self.__wait_for_valid_data(self.__measured_js_data,
                                       self.__measured_js_event,
                                       age, wait):
             return numpy.array(self.__measured_js_data.velocity)
         raise RuntimeWarning('unable to get measured_jv')
 
-    def __measured_jf(self):
+    def __measured_jf(self, age = None, wait = None):
         if self.__wait_for_valid_data(self.__measured_js_data,
                                       self.__measured_js_event,
                                       age, wait):
@@ -365,19 +376,15 @@ class utils:
 
     # internal methods for measured_cp
     def __measured_cp_cb(self, msg):
-        self.__measured_cp_data = TransformFromMsg(msg.transform)
-        self.__measured_cp_stamp = msg.header.stamp
+        self.__measured_cp_data = msg
         self.__measured_cp_event.set()
 
-    def __measured_cp(self):
-        return self.__measured_cp_data
-
-    def __measured_cp_time(self):
-        return self.__measured_cp_stamp
-
-    def __measured_cp_valid(self, timeout):
-        self.__measured_cp_event.clear()
-        return self.__measured_cp_event.wait(timeout)
+    def __measured_cp(self, age = None, wait = None):
+        if self.__wait_for_valid_data(self.__measured_cp_data,
+                                      self.__measured_cp_event,
+                                      age, wait):
+            return TransformFromMsg(self.__measured_cp_data.transform)
+        raise RuntimeWarning('unable to get measured_cp')
 
     def add_measured_cp(self):
         # throw a warning if this has alread been added to the class,
@@ -385,8 +392,7 @@ class utils:
         if hasattr(self.__class_instance, 'measured_cp'):
             raise RuntimeWarning('measured_cp already exists')
         # data
-        self.__measured_cp_data = PyKDL.Frame()
-        self.__measured_cp_stamp = rospy.Time.now() - rospy.Duration(24*60*60) # mark data as one day old
+        self.__measured_cp_data = geometry_msgs.msg.TransformStamped()
         self.__measured_cp_event = threading.Event()
         # create the subscriber and keep in list
         self.__measured_cp_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_cp',
@@ -395,21 +401,23 @@ class utils:
         self.__subscribers.append(self.__measured_cp_subscriber)
         # add attributes to class instance
         self.__class_instance.measured_cp = self.__measured_cp
-        self.__class_instance.measured_cp_time = self.__measured_cp_time
-        self.__class_instance.measured_cp_valid = self.__measured_cp_valid
 
 
     # internal methods for measured_cv
     def __measured_cv_cb(self, msg):
-        self.__measured_cv_data[0] = msg.twist.linear.x
-        self.__measured_cv_data[1] = msg.twist.linear.y
-        self.__measured_cv_data[2] = msg.twist.linear.z
-        self.__measured_cv_data[3] = msg.twist.angular.x
-        self.__measured_cv_data[4] = msg.twist.angular.y
-        self.__measured_cv_data[5] = msg.twist.angular.z
+        self.__measured_cv_data = msg
+        self.__measured_cv_event.set()
 
-    def __measured_cv(self):
-        return self.__measured_cv_data
+    def __measured_cv(self, age = None, wait = None):
+        if self.__wait_for_valid_data(self.__measured_cv_data,
+                                      self.__measured_cv_event,
+                                      age, wait):
+            return numpy.array([self.__measured_cv_data.twist.linear.x,
+                                self.__measured_cv_data.twist.linear.y,
+                                self.__measured_cv_data.twist.linear.z,
+                                self.__measured_cv_data.twist.angular.x,
+                                self.__measured_cv_data.twist.angular.y])
+        raise RuntimeWarning('unable to get measured_cv')
 
     def add_measured_cv(self):
         # throw a warning if this has alread been added to the class,
@@ -417,7 +425,8 @@ class utils:
         if hasattr(self.__class_instance, 'measured_cv'):
             raise RuntimeWarning('measured_cv already exists')
         # data
-        self.__measured_cv_data = numpy.zeros(6, dtype = numpy.float)
+        self.__measured_cv_data = geometry_msgs.msg.TwistStamped()
+        self.__measured_cv_event = threading.Event()
         # create the subscriber and keep in list
         self.__measured_cv_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_cv',
                                                          geometry_msgs.msg.TwistStamped,
@@ -429,15 +438,19 @@ class utils:
 
     # internal methods for measured_cf
     def __measured_cf_cb(self, msg):
-        self.__measured_cf_data[0] = msg.wrench.force.x
-        self.__measured_cf_data[1] = msg.wrench.force.y
-        self.__measured_cf_data[2] = msg.wrench.force.z
-        self.__measured_cf_data[3] = msg.wrench.torque.x
-        self.__measured_cf_data[4] = msg.wrench.torque.y
-        self.__measured_cf_data[5] = msg.wrench.torque.z
+        self.__measured_cf_data = msg
+        self.__measured_cf_event.set()
 
-    def __measured_cf(self):
-        return self.__measured_cf_data
+    def __measured_cf(self, age = None, wait = None):
+        if self.__wait_for_valid_data(self.__measured_cf_data,
+                                      self.__measured_cf_event,
+                                      age, wait):
+            return numpy.array([self.__measured_cf_data.wrench.linear.x,
+                                self.__measured_cf_data.wrench.linear.y,
+                                self.__measured_cf_data.wrench.linear.z,
+                                self.__measured_cf_data.wrench.angular.x,
+                                self.__measured_cf_data.wrench.angular.y])
+        raise RuntimeWarning('unable to get measured_cf')
 
     def add_measured_cf(self):
         # throw a warning if this has alread been added to the class,
@@ -445,14 +458,16 @@ class utils:
         if hasattr(self.__class_instance, 'measured_cf'):
             raise RuntimeWarning('measured_cf already exists')
         # data
-        self.__measured_cf_data = numpy.zeros(6, dtype = numpy.float)
+        self.__measured_cf_data = geometry_msgs.msg.WrenchStamped()
+        self.__measured_cf_event = threading.Event()
         # create the subscriber and keep in list
         self.__measured_cf_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_cf',
-                                                         geometry_msgs.msg.TwistStamped,
+                                                         geometry_msgs.msg.WrenchStamped,
                                                          self.__measured_cf_cb)
         self.__subscribers.append(self.__measured_cf_subscriber)
         # add attributes to class instance
         self.__class_instance.measured_cf = self.__measured_cf
+
 
 
     # internal methods for servo_jp
@@ -544,7 +559,7 @@ class utils:
 
 
     # internal methods for move_jp
-    def __move_jp(self, setpoint, blocking = False, timeout = 300.0):
+    def __move_jp(self, setpoint, blocking = False, timeout = 30.0):
         # convert to ROS msg and publish
         msg = sensor_msgs.msg.JointState()
         msg.position[:] = setpoint.flat
@@ -567,7 +582,7 @@ class utils:
 
 
     # internal methods for move_cp
-    def __move_cp(self, goal, blocking = False, timeout = 300.0):
+    def __move_cp(self, goal, blocking = False, timeout = 30.0):
         # convert to ROS msg and publish
         msg = TransformToMsg(goal)
         self.__move_cp_publisher.publish(msg)
