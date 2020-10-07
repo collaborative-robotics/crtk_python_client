@@ -217,7 +217,7 @@ class utils:
         # past timeout
         return False
 
-    def add_operating_state(self):
+    def add_operating_state(self, optional_ros_namespace = None):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'operating_state'):
@@ -227,11 +227,17 @@ class utils:
         self.__operating_state_data_previous = crtk_msgs.msg.operating_state()
         self.__operating_state_event = threading.Event()
 
+        # determine namespace to use
+        if optional_ros_namespace == None:
+            namespace_to_use = self.__ros_namespace
+        else:
+            namespace_to_use = optional_ros_namespace
+
         # create the subscriber/publisher and keep in list
-        self.__operating_state_subscriber = rospy.Subscriber(self.__ros_namespace + '/operating_state',
+        self.__operating_state_subscriber = rospy.Subscriber(namespace_to_use + '/operating_state',
                                                              crtk_msgs.msg.operating_state, self.__operating_state_cb)
         self.__subscribers.append(self.__operating_state_subscriber)
-        self.__operating_state_command_publisher = rospy.Publisher(self.__ros_namespace + '/state_command',
+        self.__operating_state_command_publisher = rospy.Publisher(namespace_to_use + '/state_command',
                                                                    crtk_msgs.msg.StringStamped,
                                                                    latch = True, queue_size = 1)
         self.__publishers.append(self.__operating_state_command_publisher)
@@ -260,7 +266,7 @@ class utils:
                                       self.__setpoint_js_event,
                                       age, wait):
             return numpy.array(self.__setpoint_js_data.position)
-        raise RuntimeWarning('unable to get setpoint_jp')
+        raise RuntimeWarning('unable to get setpoint_jp in namespace ' + self.__ros_namespace)
 
     def __setpoint_jv(self):
         if self.__wait_for_valid_data(self.__setpoint_js_data,
