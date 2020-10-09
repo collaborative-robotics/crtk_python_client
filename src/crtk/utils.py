@@ -200,7 +200,7 @@ class utils:
     def __is_busy(self):
         return self.__operating_state_data.is_busy
 
-    def __wait_while_busy(self, timeout):
+    def __wait_while_busy(self, timeout = 30):
         if timeout < 0.0:
             return False
         start_time = time.time()
@@ -565,13 +565,11 @@ class utils:
 
 
     # internal methods for move_jp
-    def __move_jp(self, setpoint, blocking = False, timeout = 30.0):
+    def __move_jp(self, setpoint):
         # convert to ROS msg and publish
         msg = sensor_msgs.msg.JointState()
         msg.position[:] = setpoint.flat
         self.__move_jp_publisher.publish(msg)
-        if blocking:
-            self.__wait_while_busy(timeout)
 
     def add_move_jp(self):
         # throw a warning if this has alread been added to the class,
@@ -588,12 +586,10 @@ class utils:
 
 
     # internal methods for move_cp
-    def __move_cp(self, goal, blocking = False, timeout = 30.0):
+    def __move_cp(self, goal):
         # convert to ROS msg and publish
         msg = TransformToMsg(goal)
         self.__move_cp_publisher.publish(msg)
-        if blocking:
-            self.__wait_while_busy(timeout)
 
     def add_move_cp(self):
         # throw a warning if this has alread been added to the class,
