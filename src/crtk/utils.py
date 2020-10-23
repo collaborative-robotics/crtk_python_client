@@ -200,9 +200,16 @@ class utils:
     def __is_busy(self):
         return self.__operating_state_data.is_busy
 
-    def __wait_while_busy(self, timeout = 30):
+    def __wait_while_busy(self, start_time = rospy.Time(0.0), timeout = 30.0):
+        # if timeout is negative, not waiting
         if timeout < 0.0:
             return False
+        # if start_time 0.0, user provided a start time and we should
+        # check if an event arrived after start_time
+        if start_time > rospy.Time(0.0):
+            if self.__operating_state_data.header.stamp > start_time and not self.__operating_state_data.is_busy:
+                return True
+        # other cases, waiting for an operating_state event
         start_time = time.time()
         self.__operating_state_event.clear()
         in_time = self.__operating_state_event.wait(timeout)
@@ -213,7 +220,7 @@ class utils:
             else:
                 # wait a bit more
                 elapsed_time = time.time() - start_time
-                return self.__wait_while_busy(timeout - elapsed_time)
+                return self.__wait_while_busy(timeout = (timeout - elapsed_time))
         # past timeout
         return False
 
@@ -312,8 +319,6 @@ class utils:
         if self.__wait_for_valid_data(self.__setpoint_cp_data,
                                       self.__setpoint_cp_event,
                                       age, wait):
-            if self.__setpoint_cp_lock:
-                print('--------------------- crap! -----------------')
             return TransformFromMsg(self.__setpoint_cp_data.transform)
         raise RuntimeWarning('unable to get setpoint_cp')
 
@@ -569,7 +574,9 @@ class utils:
         # convert to ROS msg and publish
         msg = sensor_msgs.msg.JointState()
         msg.position[:] = setpoint.flat
+        time = rospy.Time.now()
         self.__move_jp_publisher.publish(msg)
+        return time
 
     def add_move_jp(self):
         # throw a warning if this has alread been added to the class,
@@ -589,7 +596,9 @@ class utils:
     def __move_cp(self, goal):
         # convert to ROS msg and publish
         msg = TransformToMsg(goal)
+        time = rospy.Time.now()
         self.__move_cp_publisher.publish(msg)
+        return time
 
     def add_move_cp(self):
         # throw a warning if this has alread been added to the class,
