@@ -41,8 +41,8 @@ You can find some examples in the `scripts` directory.  Overall, the approach is
 
 ```python
 class crtk_move_cp_example:
-    # configuration
-    def configure(self, device_namespace):
+    # constructor
+    def __init__(self, device_namespace):
         # ROS initialization
         if not rospy.get_node_uri():
             rospy.init_node('crtk_move_cp_example', anonymous = True, log_level = rospy.WARN)
@@ -68,8 +68,7 @@ What is happening behind the scene:
   
 Once the class is defined, the user can use it:
 ```python
-example = crtk_move_cp_example()
-example.configure('/left')
+example = crtk_move_cp_example('left')
 position = example.measured_cp()
 position.p[2] += 0.05 # move by 5 cm
 example.move_cp(position)
