@@ -1,11 +1,10 @@
 # CRTK Python client library
 
-This Python package provides some tools to facilitate the development of a CRTK compatible client over ROS.
-It can be used to create a "proxy" class to communicate with an existing CRTK compatible ROS device.
+This Python package provides some tools to facilitate the development of a CRTK compatible client over ROS, i.e. create a "proxy" class to communicate with an existing CRTK compatible ROS device.
 
 CRTK specifications can be found on the [CRTK github page](https://github.com/collaborative-robotics/documentation/wiki/Robot-API).
 
-CRTK devices with a CRTK/ROS interface include:
+Examples of CRTK devices with a CRTK/ROS interface:
 * [Raven II](https://github.com/uw-biorobotics/raven2/tree/crtk)
 * [dVRK](https://github.com/jhu-dvrk/sawIntuitiveResearchKit/wiki)
 
@@ -27,9 +26,10 @@ At that point, you should be able to import the crtk python package in Python us
 
 The main class in the CRTK Python client library is `crtk.utils`.  It can be used to quickly populate an existing class by adding CRTK like methods.
 These methods will handle the following for you:
-* declare all required ROS publishers and wrap publisher calls in methods to send data to the device
-* declare all required ROS subscriber and provide callbacks to receive the data from the device
-* convert ROS messages to more convenient Python data types, i.e. numpy arrays for joint values and PyKDL types for cartesian data 
+* declare all required ROS publishers and wrap publisher calls in methods to send data to the device.
+* declare all required ROS subscribers and provide callbacks to receive the data from the device.
+* convert ROS messages to more convenient Python data types, i.e. numpy arrays for joint values and PyKDL types for cartesian data.
+* some events to manage asynchronous communication be the device and the "proxy" class.
 
 The class `crtk.utils` is designed to add CRTK features "a la carte", i.e. it doesn't assume that all CRTK features are available.  This allows to:
 * match only the features that are available on the CRTK devices one wants to use (server side)
@@ -41,7 +41,6 @@ You can find some examples in the `scripts` directory.  Overall, the approach is
 
 ```python
 class crtk_move_cp_example:
-
     # configuration
     def configure(self, device_namespace):
         # ROS initialization
@@ -80,27 +79,21 @@ example.move_cp(position)
 
 `crtk.utils` supports the following CRTK features:
 * subscribers:
-  * `add_setpoint_js`
-  * `add_setpoint_cp`
-  * `add_measured_js`
-  * `add_measured_cp`
-  * `add_measured_cv`
-  * `add_measured_cf`
+  * `add_setpoint_js`, `add_setpoint_cp`
+  * `add_measured_js`, `add_measured_cp`, `add_measured_cv`, `add_measured_cf`
+  * ...
 * publishers
-  * `add_servo_jp`
-  * `add_servo_jf`
-  * `add_servo_cp`
-  * `add_servo_cf`
-  * `add_move_jp`
-  * `add_move_cp`
+  * `add_servo_jp`, `add_servo_jf`, `add_servo_cp`, `add_servo_cf`
+  * `add_move_jp`, `add_move_cp`
+  * ...
 
-All methods relying on subscribers to get data have the following two optional parameters: `age` and `wait`:
+All methods relying on subscribers to get data have the following two _optional_ parameters: `age` and `wait`:
 ```python
   setpoint_cp(age = None, wait = None)
 ```
-Age specifies how old the data can be to be considered valid and wait specifies how long to wait for the next message if the data currently cached is too old.  By default, both are based on the expected interval provided when creating an instance of `crtk.utils`.  The expected interval should match the publishing rate from the CRTK device.  Setting the `age` to zero means that any cached data should be used and the method shouldn't wait for new messages.
+The parameter `age` specifies how old the data can be to be considered valid and `wait` specifies how long to wait for the next message if the data currently cached is too old.  By default, both are based on the expected interval provided when creating an instance of `crtk.utils`.  The expected interval should match the publishing rate from the CRTK device.  Setting the `age` to zero means that any cached data should be used and the method shouldn't wait for new messages.
 
-All move commands (`move_jp` and `move_cp`) return a ROS time object.  This is the time just before sending (publishing) the move command to the device.  This timestamp can be used to wait for motion completion using:
+All move commands (`move_jp` and `move_cp`) return a ROS time object.  This is the time just before sending (i.e. publishing) the move command to the device.  This timestamp can be used to wait for motion completion using:
 ```python
 ts = example.move_cp(goal) # record time move was sent
 example.wait_while_busy(ts)
@@ -113,15 +106,18 @@ The method `wait_while_busy` depends on the CRTK device operating state and can 
 ## Operating States
 
 `crtk.utils.add_operating_state` adds:
-
-
-
-
+* State status `operating_state()` and helper queries: `is_enabled()`,`is_homed()`, `is_busy()`
+* State command `operating_state_command()` and helper commands: `enable()`, `disable()`, `home()`, `unhome()`
+* Timer/event utilities:
+  * For subscribers: `wait_for_valid_data`
+  * For publishers (used by move commands): , `wait_while_busy()`
+  * For state changes (used by `enable()`, `home()`...): `wait_for_operating_state()`
+  
 # Examples
 
 ## dVRK
 
-For the dVRK, we provide a class that uses the `crtk.utils` to provide as many features as possible.  This is convenient for general purpose testing, for example in combination with iPython to test snippets of code.  In general, it is recommended to use your own class and only add the features you need to reduce the number of ROS messages and callbacks.
+For the dVRK, one can use the classes `dvrk.arm`, `dvrk.psm`, `dvrk.mtm`... that use the `crtk.utils` to provide as many features as possible.  This is convenient for general purpose testing, for example in combination with iPython to test snippets of code.  In general, it is recommended to use your own class and only add the features you need to reduce the number of ROS messages and callbacks.
 
 The dVRK arm class implementation can be found in the [dvrk_python](https://github.com/jhu-dvrk/dvrk-ros/blob/devel/dvrk_python/src/dvrk/arm.py) package.
 
