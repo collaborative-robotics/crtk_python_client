@@ -104,7 +104,6 @@ class utils:
     # internal methods to manage state
     def __operating_state_cb(self, msg):
         # crtk operating state contains state as well as homed and busy
-        self.__operating_state_data_previous = self.__operating_state_data
         self.__operating_state_data = msg
 
         # then when all data is saved, release "lock"
@@ -130,24 +129,24 @@ class utils:
         # past timeout
         return False
 
-    def __operating_state_command(self, state):
+    def __state_command(self, state):
         # clear timeout
         self.__operating_state_event.clear()
         # convert to ROS msg and publish
         msg = crtk_msgs.msg.StringStamped()
         msg.string = state
         # publish and wait
-        self.__operating_state_command_publisher.publish(msg)
+        self.__state_command_publisher.publish(msg)
 
     def __is_enabled(self):
         return self.__operating_state_data.state == 'ENABLED'
 
     def __enable(self, timeout = 0):
         if self.__is_enabled():
-            self.__operating_state_command("enable")
+            self.__state_command("enable")
             return True
         self.__operating_state_event.clear()
-        self.__operating_state_command("enable")
+        self.__state_command("enable")
         return self.__wait_for_operating_state('ENABLED', timeout)
 
     def __is_disabled(self):
@@ -155,10 +154,10 @@ class utils:
 
     def __disable(self, timeout = 0):
         if self.__is_disabled():
-            self.__operating_state_command("disable")
+            self.__state_command("disable")
             return True
         self.__operating_state_event.clear()
-        self.__operating_state_command("disable")
+        self.__state_command("disable")
         return self.__wait_for_operating_state('DISABLED', timeout)
 
     def __is_homed(self):
@@ -183,18 +182,18 @@ class utils:
 
     def __home(self, timeout = 0):
         if self.__is_homed():
-            self.__operating_state_command("home")
+            self.__state_command("home")
             return True
         self.__operating_state_event.clear()
-        self.__operating_state_command("home")
+        self.__state_command("home")
         return self.__wait_for_homed(timeout, True)
 
     def __unhome(self, timeout = 0):
         if not self.__is_homed():
-            self.__operating_state_command("unhome")
+            self.__state_command("unhome")
             return True
         self.__operating_state_event.clear()
-        self.__operating_state_command("unhome")
+        self.__state_command("unhome")
         return self.__wait_for_homed(timeout, False)
 
     def __is_busy(self):
@@ -215,7 +214,7 @@ class utils:
         in_time = self.__operating_state_event.wait(timeout)
         if in_time:
             # within timeout and result we expected
-            if self.__operating_state_data_previous.is_busy and not self.__operating_state_data.is_busy:
+            if not self.__operating_state_data.is_busy:
                 return True
             else:
                 # wait a bit more
@@ -231,7 +230,6 @@ class utils:
             raise RuntimeWarning('operating_state already exists')
         # data
         self.__operating_state_data = crtk_msgs.msg.operating_state()
-        self.__operating_state_data_previous = crtk_msgs.msg.operating_state()
         self.__operating_state_event = threading.Event()
 
         # determine namespace to use
@@ -244,14 +242,14 @@ class utils:
         self.__operating_state_subscriber = rospy.Subscriber(namespace_to_use + '/operating_state',
                                                              crtk_msgs.msg.operating_state, self.__operating_state_cb)
         self.__subscribers.append(self.__operating_state_subscriber)
-        self.__operating_state_command_publisher = rospy.Publisher(namespace_to_use + '/state_command',
+        self.__state_command_publisher = rospy.Publisher(namespace_to_use + '/state_command',
                                                                    crtk_msgs.msg.StringStamped,
                                                                    latch = True, queue_size = 1)
-        self.__publishers.append(self.__operating_state_command_publisher)
+        self.__publishers.append(self.__state_command_publisher)
         # add attributes to class instance
         self.__class_instance.operating_state = self.__operating_state
         self.__class_instance.wait_for_operating_state = self.__wait_for_operating_state
-        self.__class_instance.operating_state_command = self.__operating_state_command
+        self.__class_instance.state_command = self.__state_command
         self.__class_instance.is_enabled = self.__is_enabled
         self.__class_instance.enable = self.__enable
         self.__class_instance.is_disabled = self.__is_disabled
