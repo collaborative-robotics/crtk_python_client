@@ -57,6 +57,19 @@ def TransformToMsg(f):
 
 
 class utils:
+    """Class containing methods used to populate the interface
+    (dictionary) of an existing Python object with CRTK compatile
+    methods.  These methods will hide all the ROS publishers and
+    subscribers.  They will also convert the ROS messages into useful
+    types: numpy arrays for vector and matrices, PyKDL for 3D vectors
+    and frames.  Finally, this methods use threading events to help
+    synchronize the client and device/server (i.e. wait for state or end of
+    move command).
+
+    class_instance : object that will be populated
+    ros_namespace : ROS namespace for the CRTK commands used by the device
+    expected_interval : expected interval at which the device sends its motion state (measured, setpoint, goal)
+    """
     def __init__(self,
                  class_instance,
                  ros_namespace,
@@ -267,6 +280,13 @@ class utils:
         self.__setpoint_js_event.set()
 
     def __setpoint_jp(self, age = None, wait = None):
+        """Joint Position Setpoint.  Default age and wait are set to
+        expected_interval.  Age determines maximum age of already
+        received data considered valid.  If age is set to 0, any data
+        already received is considered valid.  Wait is the amount of
+        time user is willing to wait if there's no valid data already
+        received.  The method will not wait if wait is set to 0.
+        """
         if self.__wait_for_valid_data(self.__setpoint_js_data,
                                       self.__setpoint_js_event,
                                       age, wait):
@@ -454,11 +474,12 @@ class utils:
         if self.__wait_for_valid_data(self.__measured_cf_data,
                                       self.__measured_cf_event,
                                       age, wait):
-            return numpy.array([self.__measured_cf_data.wrench.linear.x,
-                                self.__measured_cf_data.wrench.linear.y,
-                                self.__measured_cf_data.wrench.linear.z,
-                                self.__measured_cf_data.wrench.angular.x,
-                                self.__measured_cf_data.wrench.angular.y])
+            return numpy.array([self.__measured_cf_data.wrench.force.x,
+                                self.__measured_cf_data.wrench.force.y,
+                                self.__measured_cf_data.wrench.force.z,
+                                self.__measured_cf_data.wrench.torque.x,
+                                self.__measured_cf_data.wrench.torque.y,
+                                self.__measured_cf_data.wrench.torque.z])
         raise RuntimeWarning('unable to get measured_cf')
 
     def add_measured_cf(self):
