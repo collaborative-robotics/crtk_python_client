@@ -3,7 +3,7 @@
 # Author: Anton Deguet
 # Date: 2018-09-29
 
-# (C) Copyright 2018 Johns Hopkins University (JHU), All Rights Reserved.
+# (C) Copyright 2018-2020 Johns Hopkins University (JHU), All Rights Reserved.
 
 # --- begin cisst license - do not edit ---
 
@@ -47,7 +47,7 @@ class crtk_haptic_example:
         self.crtk_utils.add_servo_cf()
         # for all examples
         self.duration = 10 # 10 seconds
-        self.rate = 500    # aiming for 200 Hz
+        self.rate = 500    # aiming for 500 Hz
         self.samples = self.duration * self.rate
 
     # main loop

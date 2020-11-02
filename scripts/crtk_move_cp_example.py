@@ -3,7 +3,7 @@
 # Author: Anton Deguet
 # Date: 2015-02-22
 
-# (C) Copyright 2015-2019 Johns Hopkins University (JHU), All Rights Reserved.
+# (C) Copyright 2015-2020 Johns Hopkins University (JHU), All Rights Reserved.
 
 # --- begin cisst license - do not edit ---
 
@@ -40,7 +40,7 @@ class crtk_move_cp_example:
         # populate this class with all the ROS topics we need
         self.crtk_utils = crtk.utils(self, device_namespace)
         self.crtk_utils.add_operating_state()
-        self.crtk_utils.add_measured_cp()
+        self.crtk_utils.add_setpoint_cp()
         self.crtk_utils.add_move_cp()
 
     def run_move_cp(self):
@@ -50,29 +50,27 @@ class crtk_move_cp_example:
 
         # create a new goal starting with current position
         start_cp = PyKDL.Frame()
-        start_cp.p = self.measured_cp().p
-        start_cp.M = self.measured_cp().M
+        start_cp.p = self.setpoint_cp().p
+        start_cp.M = self.setpoint_cp().M
         goal = PyKDL.Frame()
-        goal.p = self.measured_cp().p
-        goal.M = self.measured_cp().M
+        goal.p = self.setpoint_cp().p
+        goal.M = self.setpoint_cp().M
         amplitude = 0.01 # 2 centimeters
 
         # first move
         goal.p[0] = start_cp.p[0] + amplitude
         goal.p[1] = start_cp.p[1] + amplitude
         goal.p[2] = start_cp.p[2]
-        self.move_cp(goal)
-        self.wait_while_busy(20)
+        start_time = self.move_cp(goal)
+        self.wait_while_busy(start_time)
         # second move
         goal.p[0] = start_cp.p[0] - amplitude
         goal.p[1] = start_cp.p[1] - amplitude
-        self.move_cp(goal)
-        self.wait_while_busy(20)
+        self.wait_while_busy(self.move_cp(goal))
         # back to starting point
         goal.p[0] = start_cp.p[0]
         goal.p[1] = start_cp.p[1]
-        self.move_cp(goal)
-        self.wait_while_busy(20)
+        self.wait_while_busy(self.move_cp(goal))
 
 
 # use the class now, i.e. main program

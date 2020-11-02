@@ -3,7 +3,7 @@
 # Author: Anton Deguet
 # Date: 2015-02-22
 
-# (C) Copyright 2015-2019 Johns Hopkins University (JHU), All Rights Reserved.
+# (C) Copyright 2015-2020 Johns Hopkins University (JHU), All Rights Reserved.
 
 # --- begin cisst license - do not edit ---
 
@@ -40,11 +40,11 @@ class crtk_servo_cp_example:
         # populate this class with all the ROS topics we need
         self.crtk_utils = crtk.utils(self, device_namespace)
         self.crtk_utils.add_operating_state()
-        self.crtk_utils.add_measured_cp()
+        self.crtk_utils.add_setpoint_cp()
         self.crtk_utils.add_servo_cp()
         # for all examples
         self.duration = 10 # 10 seconds
-        self.rate = 500    # aiming for 200 Hz
+        self.rate = 200    # aiming for 200 Hz
         self.samples = self.duration * self.rate
 
     def run_servo_cp(self):
@@ -54,15 +54,15 @@ class crtk_servo_cp_example:
 
         # create a new goal starting with current position
         start= PyKDL.Frame()
-        start.p = self.measured_cp().p
-        start.M = self.measured_cp().M
+        start.p = self.setpoint_cp().p
+        start.M = self.setpoint_cp().M
         goal = PyKDL.Frame()
-        goal.p = self.measured_cp().p
-        goal.M = self.measured_cp().M
+        goal.p = self.setpoint_cp().p
+        goal.M = self.setpoint_cp().M
         amplitude = 0.01 # 2 centimeters
         for i in xrange(self.samples):
-            goal.p[0] =  start.p[0] + amplitude *  math.sin(i * math.radians(360.0) / self.samples)
-            goal.p[1] =  start.p[1] + amplitude *  math.sin(i * math.radians(360.0) / self.samples)
+            goal.p[0] =  start.p[0] + amplitude * (1.0 - math.cos(i * math.radians(360.0) / self.samples))
+            goal.p[1] =  start.p[1] + amplitude * (1.0 - math.cos(i * math.radians(360.0) / self.samples))
             self.servo_cp(goal)
             rospy.sleep(1.0 / self.rate)
 
