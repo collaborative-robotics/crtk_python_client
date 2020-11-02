@@ -521,6 +521,27 @@ class utils:
         self.__class_instance.servo_jp = self.__servo_jp
 
 
+    # internal methods for servo_jr
+    def __servo_jr(self, setpoint):
+        # convert to ROS msg and publish
+        msg = sensor_msgs.msg.JointState()
+        msg.position[:] = setpoint.flat
+        self.__servo_jr_publisher.publish(msg)
+
+    def add_servo_jr(self):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(self.__class_instance, 'servo_jr'):
+            raise RuntimeWarning('servo_jr already exists')
+        # create the subscriber and keep in list
+        self.__servo_jr_publisher = rospy.Publisher(self.__ros_namespace + '/servo_jr',
+                                                    sensor_msgs.msg.JointState,
+                                                    latch = True, queue_size = 1)
+        self.__publishers.append(self.__servo_jr_publisher)
+        # add attributes to class instance
+        self.__class_instance.servo_jr = self.__servo_jr
+
+
     # internal methods for servo_cp
     def __servo_cp(self, setpoint):
         # convert to ROS msg and publish
@@ -609,6 +630,29 @@ class utils:
         self.__publishers.append(self.__move_jp_publisher)
         # add attributes to class instance
         self.__class_instance.move_jp = self.__move_jp
+
+
+    # internal methods for move_jr
+    def __move_jr(self, setpoint):
+        # convert to ROS msg and publish
+        msg = sensor_msgs.msg.JointState()
+        msg.position[:] = setpoint.flat
+        time = rospy.Time.now()
+        self.__move_jr_publisher.publish(msg)
+        return time
+
+    def add_move_jr(self):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(self.__class_instance, 'move_jr'):
+            raise RuntimeWarning('move_jr already exists')
+        # create the subscriber and keep in list
+        self.__move_jr_publisher = rospy.Publisher(self.__ros_namespace + '/move_jr',
+                                                   sensor_msgs.msg.JointState,
+                                                   latch = True, queue_size = 1)
+        self.__publishers.append(self.__move_jr_publisher)
+        # add attributes to class instance
+        self.__class_instance.move_jr = self.__move_jr
 
 
     # internal methods for move_cp
