@@ -1,7 +1,7 @@
 #  Author(s):  Anton Deguet
 #  Created on: 2016-05
 
-#   (C) Copyright 2016-2018 Johns Hopkins University (JHU), All Rights Reserved.
+#   (C) Copyright 2016-2020 Johns Hopkins University (JHU), All Rights Reserved.
 
 # --- begin cisst license - do not edit ---
 
@@ -11,10 +11,10 @@
 
 # --- end cisst license ---
 
-__all__ = ["arm", "utils"]
+__all__ = ["wait_move_handle", "utils"]
+
+# handle classes
+from wait_move_handle import wait_move_handle
 
 # utilities
 from utils import utils
-
-# arm classes
-from arm import arm

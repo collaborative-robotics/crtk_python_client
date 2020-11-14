@@ -61,16 +61,16 @@ class crtk_move_cp_example:
         goal.p[0] = start_cp.p[0] + amplitude
         goal.p[1] = start_cp.p[1] + amplitude
         goal.p[2] = start_cp.p[2]
-        start_time = self.move_cp(goal)
-        self.wait_while_busy(start_time)
+        handle = self.move_cp(goal)
+        handle.wait()
         # second move
         goal.p[0] = start_cp.p[0] - amplitude
         goal.p[1] = start_cp.p[1] - amplitude
-        self.wait_while_busy(self.move_cp(goal))
+        self.move_cp(goal).wait()
         # back to starting point
         goal.p[0] = start_cp.p[0]
         goal.p[1] = start_cp.p[1]
-        self.wait_while_busy(self.move_cp(goal))
+        self.move_cp(goal).wait()
 
 
 # use the class now, i.e. main program

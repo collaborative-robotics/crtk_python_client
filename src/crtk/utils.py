@@ -21,6 +21,7 @@ import std_msgs.msg
 import geometry_msgs.msg
 import sensor_msgs.msg
 import crtk_msgs.msg
+import crtk.wait_move_handle
 
 def TransformFromMsg(t):
     """
@@ -73,8 +74,10 @@ class utils:
     def __init__(self,
                  class_instance,
                  ros_namespace,
-                 expected_interval = 0.01):
+                 expected_interval = 0.01,
+                 operating_state_instance = None):
         self.__class_instance = class_instance
+        self.__operating_state_instance = operating_state_instance
         self.__ros_namespace = ros_namespace
         self.__expected_interval = expected_interval
         self.__subscribers = []
@@ -212,27 +215,33 @@ class utils:
     def __is_busy(self):
         return self.__operating_state_data.is_busy
 
-    def __wait_while_busy(self, start_time = rospy.Time(0.0), timeout = 30.0):
+    def __wait_for_busy(self,
+                        is_busy = False,
+                        start_time = rospy.Time(0.0),
+                        timeout = 30.0):
         # if timeout is negative, not waiting
         if timeout < 0.0:
             return False
         # if start_time 0.0, user provided a start time and we should
         # check if an event arrived after start_time
         if start_time > rospy.Time(0.0):
-            if self.__operating_state_data.header.stamp > start_time and not self.__operating_state_data.is_busy:
+            if (self.__operating_state_data.header.stamp > start_time
+                and self.__operating_state_data.is_busy == is_busy):
                 return True
         # other cases, waiting for an operating_state event
-        start_time = time.time()
+        _start_time = time.time()
         self.__operating_state_event.clear()
         in_time = self.__operating_state_event.wait(timeout)
         if in_time:
             # within timeout and result we expected
-            if not self.__operating_state_data.is_busy:
+            if self.__operating_state_data.is_busy == is_busy:
                 return True
             else:
                 # wait a bit more
-                elapsed_time = time.time() - start_time
-                return self.__wait_while_busy(timeout = (timeout - elapsed_time))
+                elapsed_time = time.time() - _start_time
+                return self.__wait_for_busy(is_busy = is_busy,
+                                            start_time = start_time,
+                                            timeout = (timeout - elapsed_time))
         # past timeout
         return False
 
@@ -271,8 +280,11 @@ class utils:
         self.__class_instance.unhome = self.__unhome
         self.__class_instance.is_homed = self.__is_homed
         self.__class_instance.is_busy = self.__is_busy
-        self.__class_instance.wait_while_busy = self.__wait_while_busy
-
+        self.__class_instance.wait_for_busy = self.__wait_for_busy
+        if not self.__operating_state_instance:
+            self.__operating_state_instance = self.__class_instance
+        else:
+            raise RuntimeWarning('over writting operating state for ' + self.__ros_namespace)
 
     # internal methods for setpoint_js
     def __setpoint_js_cb(self, msg):
@@ -614,9 +626,9 @@ class utils:
         # convert to ROS msg and publish
         msg = sensor_msgs.msg.JointState()
         msg.position[:] = setpoint.flat
-        time = rospy.Time.now()
+        handle = crtk.wait_move_handle(self.__operating_state_instance)
         self.__move_jp_publisher.publish(msg)
-        return time
+        return handle
 
     def add_move_jp(self):
         # throw a warning if this has alread been added to the class,
@@ -637,9 +649,9 @@ class utils:
         # convert to ROS msg and publish
         msg = sensor_msgs.msg.JointState()
         msg.position[:] = setpoint.flat
-        time = rospy.Time.now()
+        handle = crtk.wait_move_handle(self.__operating_state_instance)
         self.__move_jr_publisher.publish(msg)
-        return time
+        return handle
 
     def add_move_jr(self):
         # throw a warning if this has alread been added to the class,
@@ -659,9 +671,9 @@ class utils:
     def __move_cp(self, goal):
         # convert to ROS msg and publish
         msg = TransformToMsg(goal)
-        time = rospy.Time.now()
+        handle = crtk.wait_move_handle(self.__operating_state_instance);
         self.__move_cp_publisher.publish(msg)
-        return time
+        return handle
 
     def add_move_cp(self):
         # throw a warning if this has alread been added to the class,

@@ -94,13 +94,16 @@ The parameter `age` specifies how old the data can be to be considered valid and
 
 All move commands (`move_jp` and `move_cp`) return a ROS time object.  This is the time just before sending (i.e. publishing) the move command to the device.  This timestamp can be used to wait for motion completion using:
 ```python
-ts = example.move_cp(goal) # record time move was sent
-example.wait_while_busy(ts)
+# wait until robot is not busy, i.e. move has ended
+h = example.move_cp(goal) # record time move was sent
+h.wait()
 # compact syntax
-example.wait_while_busy(example.move_cp(goal))
+example.move_cp(goal).wait()
+# other example, wait until move has started
+example.move_cp(goal).wait(is_busy = True)
 ```
 
-The method `wait_while_busy` depends on the CRTK device operating state and can be added to the example class using `crtk.utils.add_operating_state`.  See section below.
+The method `wait_for_busy` used by `handle.wait()` depends on the CRTK device operating state and can be added to the example class using `crtk.utils.add_operating_state`.  See section below.
 
 ## Operating States
 
@@ -109,7 +112,7 @@ The method `wait_while_busy` depends on the CRTK device operating state and can 
 * State command `operating_state_command()` and helper commands: `enable()`, `disable()`, `home()`, `unhome()`
 * Timer/event utilities:
   * For subscribers: `wait_for_valid_data`
-  * For publishers (used by move commands): , `wait_while_busy()`
+  * For publishers (used by move commands): , `wait_for_busy()`
   * For state changes (used by `enable()`, `home()`...): `wait_for_operating_state()`
   
 # Examples
@@ -137,12 +140,12 @@ import PyKDL
 goal = p.setpoint_cp()
 # move 5cm in z direction
 goal.p[2] += 0.05
-p.wait_while_busy(p.move_cp(goal))
+p.move_cp(goal).wait()
 
 import math
 # start position
 goal = p.setpoint_cp()
 # rotate tool tip frame by 25 degrees
 goal.M.DoRotX(math.pi * 0.25) 
-p.wait_while_busy(p.move_cp(goal))
+p.move_cp(goal).wait()
 ```
