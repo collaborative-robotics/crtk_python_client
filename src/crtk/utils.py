@@ -56,6 +56,22 @@ def TransformToMsg(f):
     return m
 
 
+def TwistFromMsg(t):
+    return numpy.array([t.linear.x,
+                        t.linear.y,
+                        t.linear.z,
+                        t.angular.x,
+                        t.angular.y,
+                        t.angular.z])
+
+
+def WrenchFromMsg(w):
+    return numpy.array([w.force.x,
+                        w.force.y,
+                        w.force.z,
+                        w.torque.x,
+                        w.torque.y,
+                        w.torque.z])
 
 class utils:
     """Class containing methods used to populate the interface
@@ -125,8 +141,12 @@ class utils:
         # then when all data is saved, release "lock"
         self.__operating_state_event.set()
 
-    def __operating_state(self):
-        return self.__operating_state_data.state
+    def __operating_state(self, extra = None):
+        if not extra:
+            return self.__operating_state_data.state
+        else:
+            return [self.__operating_state_data.state,
+                    self.__operating_state_data.header.stamp.to_sec()]
 
     def __wait_for_operating_state(self, expected_state, timeout):
         if timeout < 0.0:
@@ -176,8 +196,12 @@ class utils:
         self.__state_command("disable")
         return self.__wait_for_operating_state('DISABLED', timeout)
 
-    def __is_homed(self):
-        return self.__operating_state_data.is_homed
+    def __is_homed(self, extra = None):
+        if not extra:
+            return self.__operating_state_data.is_homed
+        else:
+            return [self.__operating_state_data.is_homed,
+                    self.__operating_state_data.header.stamp.to_sec()]
 
     def __wait_for_homed(self, timeout, expected_homed):
         if timeout < 0.0:
@@ -212,8 +236,12 @@ class utils:
         self.__state_command("unhome")
         return self.__wait_for_homed(timeout, False)
 
-    def __is_busy(self):
-        return self.__operating_state_data.is_busy
+    def __is_busy(self, extra = None):
+        if not extra:
+            return self.__operating_state_data.is_busy
+        else:
+            return [self.__operating_state_data.is_busy,
+                    self.__operating_state_data.header.stamp.to_sec()]
 
     def __wait_for_busy(self,
                         is_busy = False,
@@ -291,7 +319,7 @@ class utils:
         self.__setpoint_js_data = msg
         self.__setpoint_js_event.set()
 
-    def __setpoint_jp(self, age = None, wait = None):
+    def __setpoint_jp(self, age = None, wait = None, extra = None):
         """Joint Position Setpoint.  Default age and wait are set to
         expected_interval.  Age determines maximum age of already
         received data considered valid.  If age is set to 0, any data
@@ -302,21 +330,34 @@ class utils:
         if self.__wait_for_valid_data(self.__setpoint_js_data,
                                       self.__setpoint_js_event,
                                       age, wait):
-            return numpy.array(self.__setpoint_js_data.position)
+            if not extra:
+                return numpy.array(self.__setpoint_js_data.position)
+            else:
+                return [numpy.array(self.__setpoint_js_data.position),
+                        self.__setpoint_js_data.header.stamp.to_sec()]
+
         raise RuntimeWarning('unable to get setpoint_jp in namespace ' + self.__ros_namespace)
 
-    def __setpoint_jv(self):
+    def __setpoint_jv(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__setpoint_js_data,
                                       self.__setpoint_js_event,
                                       age, wait):
-            return numpy.array(self.__setpoint_js_data.velocity)
+            if not extra:
+                return numpy.array(self.__setpoint_js_data.velocity)
+            else:
+                return [numpy.array(self.__setpoint_js_data.velocity),
+                        self.__setpoint_js_data.header.stamp.to_sec()]
         raise RuntimeWarning('unable to get setpoint_jv')
 
-    def __setpoint_jf(self):
+    def __setpoint_jf(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__setpoint_js_data,
                                       self.__setpoint_js_event,
                                       age, wait):
-            return numpy.array(self.__setpoint_js_data.effort)
+            if not extra:
+                return numpy.array(self.__setpoint_js_data.effort)
+            else:
+                return [numpy.array(self.__setpoint_js_data.effort),
+                        self.__setpoint_js_data.header.stamp.to_sec()]
         raise RuntimeWarning('unable to get setpoint_jf')
 
     def add_setpoint_js(self):
@@ -345,11 +386,15 @@ class utils:
         self.__setpoint_cp_lock = False
         self.__setpoint_cp_event.set()
 
-    def __setpoint_cp(self, age = None, wait = None):
+    def __setpoint_cp(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__setpoint_cp_data,
                                       self.__setpoint_cp_event,
                                       age, wait):
-            return TransformFromMsg(self.__setpoint_cp_data.transform)
+            if not extra:
+                return TransformFromMsg(self.__setpoint_cp_data.transform)
+            else:
+                return [TransformFromMsg(self.__setpoint_cp_data.transform),
+                        self.__setpoint_cp_data.header.stamp.to_sec()]
         raise RuntimeWarning('unable to get setpoint_cp')
 
     def add_setpoint_cp(self):
@@ -375,25 +420,37 @@ class utils:
         self.__measured_js_data = msg
         self.__measured_js_event.set()
 
-    def __measured_jp(self, age = None, wait = None):
+    def __measured_jp(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__measured_js_data,
                                       self.__measured_js_event,
                                       age, wait):
-            return numpy.array(self.__measured_js_data.position)
+            if not extra:
+                return numpy.array(self.__measured_js_data.position)
+            else:
+                return [numpy.array(self.__measured_js_data.position),
+                        self.__measured_js_data.header.stamp.to_sec()]
         raise RuntimeWarning('unable to get measured_jp')
 
-    def __measured_jv(self, age = None, wait = None):
+    def __measured_jv(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__measured_js_data,
                                       self.__measured_js_event,
                                       age, wait):
-            return numpy.array(self.__measured_js_data.velocity)
+            if not extra:
+                return numpy.array(self.__measured_js_data.velocity)
+            else:
+                return [numpy.array(self.__measured_js_data.velocity),
+                        self.__measured_js_data.header.stamp.to_sec()]
         raise RuntimeWarning('unable to get measured_jv')
 
-    def __measured_jf(self, age = None, wait = None):
+    def __measured_jf(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__measured_js_data,
                                       self.__measured_js_event,
                                       age, wait):
-            return numpy.array(self.__measured_js_data.effort)
+            if not extra:
+                return numpy.array(self.__measured_js_data.effort)
+            else:
+                return [numpy.array(self.__measured_js_data.effort),
+                        self.__measured_js_data.header.stamp.to_sec()]
         raise RuntimeWarning('unable to get measured_jf')
 
     def add_measured_js(self):
@@ -420,11 +477,15 @@ class utils:
         self.__measured_cp_data = msg
         self.__measured_cp_event.set()
 
-    def __measured_cp(self, age = None, wait = None):
+    def __measured_cp(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__measured_cp_data,
                                       self.__measured_cp_event,
                                       age, wait):
-            return TransformFromMsg(self.__measured_cp_data.transform)
+            if not extra:
+                return TransformFromMsg(self.__measured_cp_data.transform)
+            else:
+                return [TransformFromMsg(self.__measured_cp_data.transform),
+                        self.__measured_cp_data.header.stamp.to_sec()]
         raise RuntimeWarning('unable to get measured_cp')
 
     def add_measured_cp(self):
@@ -449,15 +510,15 @@ class utils:
         self.__measured_cv_data = msg
         self.__measured_cv_event.set()
 
-    def __measured_cv(self, age = None, wait = None):
+    def __measured_cv(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__measured_cv_data,
                                       self.__measured_cv_event,
                                       age, wait):
-            return numpy.array([self.__measured_cv_data.twist.linear.x,
-                                self.__measured_cv_data.twist.linear.y,
-                                self.__measured_cv_data.twist.linear.z,
-                                self.__measured_cv_data.twist.angular.x,
-                                self.__measured_cv_data.twist.angular.y])
+            if not extra:
+                return TwistFromMsg(self.__measured_cv_data.twist)
+            else:
+                return [TwistFromMsg(self.__measured_cv_data.twist),
+                        self.__measured_cv_data.header.stamp.to_sec()]
         raise RuntimeWarning('unable to get measured_cv')
 
     def add_measured_cv(self):
@@ -482,16 +543,15 @@ class utils:
         self.__measured_cf_data = msg
         self.__measured_cf_event.set()
 
-    def __measured_cf(self, age = None, wait = None):
+    def __measured_cf(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__measured_cf_data,
                                       self.__measured_cf_event,
                                       age, wait):
-            return numpy.array([self.__measured_cf_data.wrench.force.x,
-                                self.__measured_cf_data.wrench.force.y,
-                                self.__measured_cf_data.wrench.force.z,
-                                self.__measured_cf_data.wrench.torque.x,
-                                self.__measured_cf_data.wrench.torque.y,
-                                self.__measured_cf_data.wrench.torque.z])
+            if not extra:
+                return WrenchFromMsg(self.__measured_cf_data.wrench)
+            else:
+                return [WrenchFromMsg(self.__measured_cf_data.wrench),
+                        self.__measured_cf_data.header.stamp.to_sec()]
         raise RuntimeWarning('unable to get measured_cf')
 
     def add_measured_cf(self):
