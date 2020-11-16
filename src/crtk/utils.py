@@ -319,6 +319,16 @@ class utils:
         self.__setpoint_js_data = msg
         self.__setpoint_js_event.set()
 
+    def __setpoint_js(self, age = None, wait = None):
+        if self.__wait_for_valid_data(self.__setpoint_js_data,
+                                      self.__setpoint_js_event,
+                                      age, wait):
+            return [numpy.array(self.__setpoint_js_data.position),
+                    numpy.array(self.__setpoint_js_data.velocity),
+                    numpy.array(self.__setpoint_js_data.effort),
+                    self.__setpoint_js_data.header.stamp.to_sec()]
+        raise RuntimeWarning('unable to get setpoint_js')
+
     def __setpoint_jp(self, age = None, wait = None, extra = None):
         """Joint Position Setpoint.  Default age and wait are set to
         expected_interval.  Age determines maximum age of already
@@ -363,7 +373,7 @@ class utils:
     def add_setpoint_js(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(self.__class_instance, 'setpoint_jp'):
+        if hasattr(self.__class_instance, 'setpoint_js'):
             raise RuntimeWarning('setpoint_js already exists')
         # data
         self.__setpoint_js_data = sensor_msgs.msg.JointState()
@@ -374,6 +384,7 @@ class utils:
                                                          self.__setpoint_js_cb)
         self.__subscribers.append(self.__setpoint_js_subscriber)
         # add attributes to class instance
+        self.__class_instance.setpoint_js = self.__setpoint_js
         self.__class_instance.setpoint_jp = self.__setpoint_jp
         self.__class_instance.setpoint_jv = self.__setpoint_jv
         self.__class_instance.setpoint_jf = self.__setpoint_jf
@@ -420,6 +431,16 @@ class utils:
         self.__measured_js_data = msg
         self.__measured_js_event.set()
 
+    def __measured_js(self, age = None, wait = None):
+        if self.__wait_for_valid_data(self.__measured_js_data,
+                                      self.__measured_js_event,
+                                      age, wait):
+            return [numpy.array(self.__measured_js_data.position),
+                    numpy.array(self.__measured_js_data.velocity),
+                    numpy.array(self.__measured_js_data.effort),
+                    self.__measured_js_data.header.stamp.to_sec()]
+        raise RuntimeWarning('unable to get measured_js')
+
     def __measured_jp(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__measured_js_data,
                                       self.__measured_js_event,
@@ -456,7 +477,7 @@ class utils:
     def add_measured_js(self):
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
-        if hasattr(self.__class_instance, 'measured_jp'):
+        if hasattr(self.__class_instance, 'measured_js'):
             raise RuntimeWarning('measured_js already exists')
         # data
         self.__measured_js_data = sensor_msgs.msg.JointState()
@@ -467,6 +488,7 @@ class utils:
                                                          self.__measured_js_cb)
         self.__subscribers.append(self.__measured_js_subscriber)
         # add attributes to class instance
+        self.__class_instance.measured_js = self.__measured_js
         self.__class_instance.measured_jp = self.__measured_jp
         self.__class_instance.measured_jv = self.__measured_jv
         self.__class_instance.measured_jf = self.__measured_jf

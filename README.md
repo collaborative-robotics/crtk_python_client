@@ -33,7 +33,7 @@ These methods will handle the following for you:
 
 The class `crtk.utils` is designed to add CRTK features "a la carte", i.e. it doesn't assume that all CRTK features are available.  This allows to:
 * match only the features that are available on the CRTK devices one wants to use (server side)
-* reduce the number of features to those strictly needed for the application (client side).  Reducing the number of ROS topics used helps in terms of performance. 
+* reduce the number of features to those strictly needed for the application (client side).  Reducing the number of ROS topics used helps in terms of performance.
 
 ## Base class and `crtk.utils`
 
@@ -55,7 +55,7 @@ class crtk_move_cp_example:
 What is happening behind the scene:
 * `device_namespace` is the ROS namespace used by the device.  E.g. if the namespace is `left`, we assume the device will have its CRTK ROS topics under `/left`.
 * `get_node_uri()` and `init_node()` are not strictly needed but helps if the user didn't not properly initialized the ROS node
-* Add an instance of `crtk.utils` in your class.  The first parameter indicates which Python object should be "populated", i.e. which object will have the CRTK methods added to its dictionary.   
+* Add an instance of `crtk.utils` in your class.  The first parameter indicates which Python object should be "populated", i.e. which object will have the CRTK methods added to its dictionary.
 * `add_measured_cp()`:
   * Creates a suscriber for the topic, e.g. : `/left/measured_cp`
   * Registers a built-in callback for the topic.  The callback will store the latest `measured_cp` ROS message in `crtk_utils`
@@ -65,7 +65,7 @@ What is happening behind the scene:
   * Creates a publisher for the topic, e.g. : `/left/move_cp`
   * Provides a method to send a PyKDL frame (goal), internally convert to ROS message.
   * Adds the method `move_cp()` to the user class (`crtk_move_cp_example`)
-  
+
 Once the class is defined, the user can use it:
 ```python
 example = crtk_move_cp_example('left')
@@ -114,7 +114,7 @@ The method `wait_for_busy` used by `handle.wait()` depends on the CRTK device op
   * For subscribers: `wait_for_valid_data`
   * For publishers (used by move commands): , `wait_for_busy()`
   * For state changes (used by `enable()`, `home()`...): `wait_for_operating_state()`
-  
+
 # Examples
 
 ## dVRK
@@ -129,6 +129,13 @@ import dvrk
 p = dvrk.arm('PSM1')
 p.enable()
 p.home()
+
+# get measured joint state
+[position, velocity, effort, time] = p.measured_js()
+# get only position
+position = p.measured_jp()
+# get position and time
+[position, time] = p.measured_jp(extra = True)
 
 # move in joint space
 import numpy
@@ -146,6 +153,6 @@ import math
 # start position
 goal = p.setpoint_cp()
 # rotate tool tip frame by 25 degrees
-goal.M.DoRotX(math.pi * 0.25) 
+goal.M.DoRotX(math.pi * 0.25)
 p.move_cp(goal).wait()
 ```
