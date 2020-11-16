@@ -593,6 +593,33 @@ class utils:
         self.__class_instance.measured_cf = self.__measured_cf
 
 
+    # internal methods for jacobian
+    def __jacobian_cb(self, msg):
+        self.__jacobian_data = msg
+        self.__jacobian_event.set()
+
+    def __jacobian(self):
+        jacobian = numpy.asarray(self.__jacobian_data.data)
+        jacobian.shape = self.__jacobian_data.layout.dim[0].size, self.__jacobian_data.layout.dim[1].size
+        return jacobian
+
+    def add_jacobian(self):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(self.__class_instance, 'jacobian'):
+            raise RuntimeWarning('jacobian already exists')
+        # data
+        self.__jacobian_data = std_msgs.msg.Float64MultiArray()
+        self.__jacobian_event = threading.Event()
+        # create the subscriber and keep in list
+        self.__jacobian_subscriber = rospy.Subscriber(self.__ros_namespace + '/jacobian',
+                                                      std_msgs.msg.Float64MultiArray,
+                                                      self.__jacobian_cb)
+        self.__subscribers.append(self.__jacobian_subscriber)
+        # add attributes to class instance
+        self.__class_instance.jacobian = self.__jacobian
+
+
 
     # internal methods for servo_jp
     def __servo_jp(self, setpoint):
