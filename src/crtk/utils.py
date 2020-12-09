@@ -99,10 +99,15 @@ class utils:
         self.__subscribers = []
         self.__publishers = []
         self.__attributes = []
-
+        rospy.on_shutdown(self.__ros_shutdown)
 
     def __del__(self):
         self.remove_all()
+
+
+    def __ros_shutdown(self):
+        if hasattr(self, '_utils__operating_state_event'):
+            self.__operating_state_event.set()
 
 
     def remove_all(self):
@@ -153,6 +158,8 @@ class utils:
             return False
         start_time = time.time()
         in_time = self.__operating_state_event.wait(timeout)
+        if rospy.is_shutdown():
+            return False;
         if in_time:
             # within timeout and result we expected
             if self.__operating_state_data.state == expected_state:
@@ -209,6 +216,8 @@ class utils:
         start_time = time.time()
         self.__operating_state_event.clear()
         in_time = self.__operating_state_event.wait(timeout)
+        if rospy.is_shutdown():
+            return False;
         if in_time:
             # within timeout and result we expected
             if (self.__operating_state_data.is_homed == expected_homed) and (not self.__operating_state_data.is_busy):
@@ -260,6 +269,8 @@ class utils:
         _start_time = time.time()
         self.__operating_state_event.clear()
         in_time = self.__operating_state_event.wait(timeout)
+        if rospy.is_shutdown():
+            return False;
         if in_time:
             # within timeout and result we expected
             if self.__operating_state_data.is_busy == is_busy:

@@ -20,6 +20,8 @@ class wait_move_handle:
         self.__start_time = rospy.Time.now()
 
     def wait(self, is_busy = False, timeout = 30.0):
+        if rospy.is_shutdown():
+            return False
         if self.__class_instance:
             return self.__class_instance.wait_for_busy(is_busy = is_busy,
                                                        start_time = self.__start_time,
