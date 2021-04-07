@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>crtk_python_client</name>
-  <version>0.0.1</version>
+  <version>1.0.0</version>
   <description>crtk Python client</description>
 
   <maintainer email="anton.deguet@jhu.edu">Anton Deguet</maintainer>
