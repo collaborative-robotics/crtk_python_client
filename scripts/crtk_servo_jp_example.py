@@ -1,20 +1,13 @@
 #!/usr/bin/env python
 
 # Author: Anton Deguet
-# Date: 2015-02-22
-
-# (C) Copyright 2015-2020 Johns Hopkins University (JHU), All Rights Reserved.
-
-# --- begin cisst license - do not edit ---
-
-# This software is provided "as is" under an open source license, with
-# no warranty.  The complete license can be found in license.txt and
-# http://www.cisst.org/cisst/license.txt.
-
-# --- end cisst license ---
+# Created on: 2015-02-22
+#
+# Copyright (c) 2015-2021 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
+# Released under MIT License
 
 # Start a single arm using
-# > rosrun dvrk_robot dvrk_console_json -j <console-file> -c crtk_alpha
+# > rosrun dvrk_robot dvrk_console_json -j <console-file>
 
 # To communicate with the arm using ROS topics, see the python based example dvrk_arm_test.py:
 # > rosrun crtk_python_client crtk_arm_test.py <arm-name>

@@ -6,7 +6,7 @@
 
   <maintainer email="anton.deguet@jhu.edu">Anton Deguet</maintainer>
   <maintainer email="amunawar@wpi.edu">Adnan Munawar</maintainer>
-  <license>???</license>
+  <license>MIT</license>
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>rospy</build_depend>

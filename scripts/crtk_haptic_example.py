@@ -2,20 +2,13 @@
 
 # Author: Anton Deguet
 # Date: 2018-09-29
-
-# (C) Copyright 2018-2020 Johns Hopkins University (JHU), All Rights Reserved.
-
-# --- begin cisst license - do not edit ---
-
-# This software is provided "as is" under an open source license, with
-# no warranty.  The complete license can be found in license.txt and
-# http://www.cisst.org/cisst/license.txt.
-
-# --- end cisst license ---
+#
+# Copyright (c) 2018-2021 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
+# Released under MIT License
 
 # Start your crtk compatible device first!
 # dVRK example:
-# > rosrun dvrk_robot dvrk_console_json -j <console-file> -c crtk_alpha
+# > rosrun dvrk_robot dvrk_console_json -j <console-file>
 # Phantom Omni example:
 # > rosrun sensable_phantom_ros sensable_phantom -j sawSensablePhantomRight.json
 
