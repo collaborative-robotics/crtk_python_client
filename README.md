@@ -29,7 +29,7 @@ These methods will handle the following for you:
 * declare all required ROS publishers and wrap publisher calls in methods to send data to the device.
 * declare all required ROS subscribers and provide callbacks to receive the data from the device.
 * convert ROS messages to more convenient Python data types, i.e. numpy arrays for joint values and PyKDL types for cartesian data.
-* some events to manage asynchronous communication be the device and the "proxy" class.
+* some events to manage asynchronous communication between the device and the "proxy" class.
 
 The class `crtk.utils` is designed to add CRTK features "a la carte", i.e. it doesn't assume that all CRTK features are available.  This allows to:
 * match only the features that are available on the CRTK devices one wants to use (server side)
@@ -54,16 +54,16 @@ class crtk_move_cp_example:
 
 What is happening behind the scene:
 * `device_namespace` is the ROS namespace used by the device.  E.g. if the namespace is `left`, we assume the device will have its CRTK ROS topics under `/left`.
-* `get_node_uri()` and `init_node()` are not strictly needed but helps if the user didn't not properly initialized the ROS node
+* `get_node_uri()` and `init_node()` are not strictly needed but helps if the user did not properly initialize the ROS node
 * Add an instance of `crtk.utils` in your class.  The first parameter indicates which Python object should be "populated", i.e. which object will have the CRTK methods added to its dictionary.
 * `add_measured_cp()`:
-  * Creates a suscriber for the topic, e.g. : `/left/measured_cp`
+  * Creates a subscriber for the topic, e.g. : `/left/measured_cp`
   * Registers a built-in callback for the topic.  The callback will store the latest `measured_cp` ROS message in `crtk_utils`
   * Provides a method to read the latest `measured_cp` message as a PyKDL frame.
   * Adds the method `measured_cp()` to the user class (`crtk_move_cp_example`)
 * `add_move_cp()`:
   * Creates a publisher for the topic, e.g. : `/left/move_cp`
-  * Provides a method to send a PyKDL frame (goal), internally convert to ROS message.
+  * Provides a method to send a PyKDL frame (goal), internally converts to a ROS message.
   * Adds the method `move_cp()` to the user class (`crtk_move_cp_example`)
 
 Once the class is defined, the user can use it:
@@ -92,7 +92,7 @@ All methods relying on subscribers to get data have the following two _optional_
 ```
 The parameter `age` specifies how old the data can be to be considered valid and `wait` specifies how long to wait for the next message if the data currently cached is too old.  By default, both are based on the expected interval provided when creating an instance of `crtk.utils`.  The expected interval should match the publishing rate from the CRTK device.  Setting the `age` to zero means that any cached data should be used and the method shouldn't wait for new messages.
 
-All move commands (`move_jp` and `move_cp`) return a ROS time object.  This is the time just before sending (i.e. publishing) the move command to the device.  This timestamp can be used to wait for motion completion using:
+All move commands (`move_jp` and `move_cp`) return a ROS time object.  This is the time just before sending (i.e., publishing) the move command to the device.  This timestamp can be used to wait for motion completion using:
 ```python
 # wait until robot is not busy, i.e. move has ended
 h = example.move_cp(goal) # record time move was sent
