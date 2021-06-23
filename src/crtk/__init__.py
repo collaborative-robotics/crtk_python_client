@@ -7,7 +7,7 @@
 __all__ = ["wait_move_handle", "utils"]
 
 # handle classes
-from wait_move_handle import wait_move_handle
+from .wait_move_handle import wait_move_handle
 
 # utilities
-from utils import utils
+from .utils import utils
