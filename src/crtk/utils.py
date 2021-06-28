@@ -83,7 +83,7 @@ class utils:
     def __init__(self,
                  class_instance,
                  ros_namespace,
-                 expected_interval = 0.01,
+                 expected_interval = 0.02,
                  operating_state_instance = None):
         self.__class_instance = class_instance
         self.__operating_state_instance = operating_state_instance
