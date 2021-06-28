@@ -23,6 +23,9 @@ import rospy
 import numpy
 import PyKDL
 
+if sys.version_info.major < 3:
+    input = raw_input
+
 # example of application using device.py
 class crtk_teleop_example:
 
@@ -84,7 +87,7 @@ class crtk_teleop_example:
         self.running = True
         while (self.running):
             print ('\n- q: quit\n- p: print position, velocity\n- t: position based teleop (10s)')
-            answer = raw_input('Enter your choice and [enter] to continue\n')
+            answer = input('Enter your choice and [enter] to continue\n')
             if answer == 'q':
                 self.running = False
                 self.master.disable()
@@ -130,7 +133,7 @@ class crtk_teleop_example:
         gripper_started = False
 
         # loop
-        for i in xrange(self.samples):
+        for i in range(self.samples):
             # current master in puppet orientation
             current_master = PyKDL.Frame(registration_rotation.Inverse() * self.master.measured_cp())
             goal_puppet.p = start_puppet.p + scale * (current_master.p - start_master.p)

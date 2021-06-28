@@ -49,7 +49,7 @@ class crtk_servo_jp_example:
         start_jp = numpy.copy(self.setpoint_jp())
         goal = numpy.copy(self.setpoint_jp())
         amplitude = math.radians(10.0) # +/- 10 degrees
-        for i in xrange(self.samples):
+        for i in range(self.samples):
             goal[0] = start_jp[0] + amplitude * (1.0 - math.cos(i * math.radians(360.0) / self.samples))
             goal[1] = start_jp[1] + amplitude * (1.0 - math.cos(i * math.radians(360.0) / self.samples))
             self.servo_jp(goal)

@@ -22,6 +22,9 @@ import rospy
 import numpy
 import PyKDL
 
+if sys.version_info.major < 3:
+    input = raw_input
+
 # example of application using device.py
 class crtk_haptic_example:
 
@@ -52,7 +55,7 @@ class crtk_haptic_example:
         self.running = True
         while (self.running):
             print ('\n- q: quit\n- p: print position, velocity\n- b: virtual box around current position with linear forces (10s)\n- v: viscosity (10s)')
-            answer = raw_input('Enter your choice and [enter] to continue\n')
+            answer = input('Enter your choice and [enter] to continue\n')
             if answer == 'q':
                 self.running = False
                 self.disable()
@@ -77,10 +80,10 @@ class crtk_haptic_example:
         p_gain = -500.0
         center = PyKDL.Frame()
         center.p = self.measured_cp().p
-        for i in xrange(self.samples):
+        for i in range(self.samples):
             wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             # foreach d dimension x, y, z
-            for d in xrange(3):
+            for d in range(3):
                 distance = self.measured_cp().p[d] - center.p[d]
                 if (distance > dim):
                     wrench[d] = p_gain * (distance - dim)
@@ -94,10 +97,10 @@ class crtk_haptic_example:
     # viscosity
     def run_viscosity(self):
         d_gain = -10.0
-        for i in xrange(self.samples):
+        for i in range(self.samples):
             wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             # foreach d dimension x, y, z
-            for d in xrange(3):
+            for d in range(3):
                 wrench[d] = d_gain * self.measured_cv()[d]
             self.servo_cf(wrench)
             rospy.sleep(1.0 / self.rate)

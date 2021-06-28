@@ -53,7 +53,7 @@ class crtk_servo_cp_example:
         goal.p = self.setpoint_cp().p
         goal.M = self.setpoint_cp().M
         amplitude = 0.01 # 2 centimeters
-        for i in xrange(self.samples):
+        for i in range(self.samples):
             goal.p[0] =  start.p[0] + amplitude * (1.0 - math.cos(i * math.radians(360.0) / self.samples))
             goal.p[1] =  start.p[1] + amplitude * (1.0 - math.cos(i * math.radians(360.0) / self.samples))
             self.servo_cp(goal)
