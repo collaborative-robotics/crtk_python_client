@@ -238,11 +238,16 @@ class utils:
         self.__state_command("unhome")
         return self.__wait_for_homed(timeout, False)
 
-    def __is_busy(self, extra = None):
+    def __is_busy(self,
+                  start_time = rospy.Time(0.0),
+                  extra = None):
+        result = True
+        if (self.__operating_state_data.header.stamp > start_time):
+            result = self.__operating_state_data.is_busy
         if not extra:
-            return self.__operating_state_data.is_busy
+            return result
         else:
-            return [self.__operating_state_data.is_busy,
+            return [result,
                     self.__operating_state_data.header.stamp.to_sec()]
 
     def __wait_for_busy(self,
