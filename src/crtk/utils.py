@@ -1,7 +1,7 @@
 #  Author(s):  Anton Deguet
 #  Created on: 2018-02-15
 #
-# Copyright (c) 2018-2021 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
+# Copyright (c) 2018-2022 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
 # Released under MIT License
 
 import threading
@@ -13,6 +13,7 @@ import PyKDL
 import std_msgs.msg
 import geometry_msgs.msg
 import sensor_msgs.msg
+import tf_conversions.posemath
 import crtk_msgs.msg
 import crtk.wait_move_handle
 
@@ -411,9 +412,9 @@ class utils:
                                       self.__setpoint_cp_event,
                                       age, wait):
             if not extra:
-                return TransformFromMsg(self.__setpoint_cp_data.transform)
+                return tf_conversions.posemath.fromMsg(self.__setpoint_cp_data.pose)
             else:
-                return [TransformFromMsg(self.__setpoint_cp_data.transform),
+                return [tf_conversions.posemath.fromMsg(self.__setpoint_cp_data.pose),
                         self.__setpoint_cp_data.header.stamp.to_sec()]
         raise RuntimeWarning('unable to get setpoint_cp')
 
@@ -423,12 +424,12 @@ class utils:
         if hasattr(self.__class_instance, 'setpoint_cp'):
             raise RuntimeWarning('setpoint_cp already exists')
         # data
-        self.__setpoint_cp_data = geometry_msgs.msg.TransformStamped()
+        self.__setpoint_cp_data = geometry_msgs.msg.PoseStamped()
         self.__setpoint_cp_event = threading.Event()
         self.__setpoint_cp_lock = False
         # create the subscriber and keep in list
         self.__setpoint_cp_subscriber = rospy.Subscriber(self.__ros_namespace + '/setpoint_cp',
-                                                         geometry_msgs.msg.TransformStamped,
+                                                         geometry_msgs.msg.PoseStamped,
                                                          self.__setpoint_cp_cb)
         self.__subscribers.append(self.__setpoint_cp_subscriber)
         # add attributes to class instance
@@ -513,9 +514,9 @@ class utils:
                                       self.__measured_cp_event,
                                       age, wait):
             if not extra:
-                return TransformFromMsg(self.__measured_cp_data.transform)
+                return tf_conversions.posemath.fromMsg(self.__setpoint_cp_data.pose)
             else:
-                return [TransformFromMsg(self.__measured_cp_data.transform),
+                return [tf_conversions.posemath.fromMsg(self.__setpoint_cp_data.pose),
                         self.__measured_cp_data.header.stamp.to_sec()]
         raise RuntimeWarning('unable to get measured_cp')
 
@@ -525,11 +526,11 @@ class utils:
         if hasattr(self.__class_instance, 'measured_cp'):
             raise RuntimeWarning('measured_cp already exists')
         # data
-        self.__measured_cp_data = geometry_msgs.msg.TransformStamped()
+        self.__measured_cp_data = geometry_msgs.msg.PoseStamped()
         self.__measured_cp_event = threading.Event()
         # create the subscriber and keep in list
         self.__measured_cp_subscriber = rospy.Subscriber(self.__ros_namespace + '/measured_cp',
-                                                         geometry_msgs.msg.TransformStamped,
+                                                         geometry_msgs.msg.PoseStamped,
                                                          self.__measured_cp_cb)
         self.__subscribers.append(self.__measured_cp_subscriber)
         # add attributes to class instance
@@ -675,7 +676,8 @@ class utils:
     # internal methods for servo_cp
     def __servo_cp(self, setpoint):
         # convert to ROS msg and publish
-        msg = TransformToMsg(setpoint)
+        msg = geometry_msgs.msg.PoseStamped()
+        msg.pose = tf_conversions.posemath.toMsg(setpoint)
         self.__servo_cp_publisher.publish(msg)
 
     def add_servo_cp(self):
@@ -685,7 +687,7 @@ class utils:
             raise RuntimeWarning('servo_cp already exists')
         # create the subscriber and keep in list
         self.__servo_cp_publisher = rospy.Publisher(self.__ros_namespace + '/servo_cp',
-                                                    geometry_msgs.msg.TransformStamped,
+                                                    geometry_msgs.msg.PoseStamped,
                                                     latch = True, queue_size = 1)
         self.__publishers.append(self.__servo_cp_publisher)
         # add attributes to class instance
@@ -788,7 +790,8 @@ class utils:
     # internal methods for move_cp
     def __move_cp(self, goal):
         # convert to ROS msg and publish
-        msg = TransformToMsg(goal)
+        msg = geometry_msgs.msg.PoseStamped()
+        msg.pose = tf_conversions.posemath.toMsg(goal)
         handle = crtk.wait_move_handle(self.__operating_state_instance);
         self.__move_cp_publisher.publish(msg)
         return handle
@@ -800,7 +803,7 @@ class utils:
             raise RuntimeWarning('move_cp already exists')
         # create the subscriber and keep in list
         self.__move_cp_publisher = rospy.Publisher(self.__ros_namespace + '/move_cp',
-                                                    geometry_msgs.msg.TransformStamped,
+                                                    geometry_msgs.msg.PoseStamped,
                                                     latch = True, queue_size = 1)
         self.__publishers.append(self.__move_cp_publisher)
         # add attributes to class instance
