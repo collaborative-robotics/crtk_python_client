@@ -514,9 +514,9 @@ class utils:
                                       self.__measured_cp_event,
                                       age, wait):
             if not extra:
-                return tf_conversions.posemath.fromMsg(self.__setpoint_cp_data.pose)
+                return tf_conversions.posemath.fromMsg(self.__measured_cp_data.pose)
             else:
-                return [tf_conversions.posemath.fromMsg(self.__setpoint_cp_data.pose),
+                return [tf_conversions.posemath.fromMsg(self.__measured_cp_data.pose),
                         self.__measured_cp_data.header.stamp.to_sec()]
         raise RuntimeWarning('unable to get measured_cp')
 
