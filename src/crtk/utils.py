@@ -739,7 +739,7 @@ class utils:
         self.__class_instance.servo_cf = self.__servo_cf
 
 
-    # internal methods for servo_cf
+    # internal methods for servo_cv
     def __servo_cv(self, setpoint):
         # convert to ROS msg and publish
         msg = geometry_msgs.msg.TwistStamped()
