@@ -1,7 +1,7 @@
 #  Author(s):  Anton Deguet
 #  Created on: 2018-02-15
 #
-# Copyright (c) 2018-2022 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
+# Copyright (c) 2018-2023 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
 # Released under MIT License
 
 import threading
@@ -631,6 +631,26 @@ class utils:
 
 
 
+    # internal methods for hold
+    def __hold(self):
+        # convert to ROS msg and publish
+        msg = std_msgs.msg.Empty()
+        self.__hold_publisher.publish(msg)
+
+    def add_hold(self):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(self.__class_instance, 'hold'):
+            raise RuntimeWarning('hold already exists')
+        # create the subscriber and keep in list
+        self.__hold_publisher = rospy.Publisher(self.__ros_namespace + '/hold',
+                                                    std_msgs.msg.Empty,
+                                                    latch = False, queue_size = 1)
+        self.__publishers.append(self.__hold_publisher)
+        # add attributes to class instance
+        self.__class_instance.hold = self.__hold
+
+
     # internal methods for servo_jp
     def __servo_jp(self, setpoint):
         # convert to ROS msg and publish
@@ -646,7 +666,7 @@ class utils:
         # create the subscriber and keep in list
         self.__servo_jp_publisher = rospy.Publisher(self.__ros_namespace + '/servo_jp',
                                                     sensor_msgs.msg.JointState,
-                                                    latch = True, queue_size = 1)
+                                                    latch = False, queue_size = 1)
         self.__publishers.append(self.__servo_jp_publisher)
         # add attributes to class instance
         self.__class_instance.servo_jp = self.__servo_jp
@@ -667,7 +687,7 @@ class utils:
         # create the subscriber and keep in list
         self.__servo_jr_publisher = rospy.Publisher(self.__ros_namespace + '/servo_jr',
                                                     sensor_msgs.msg.JointState,
-                                                    latch = True, queue_size = 1)
+                                                    latch = False, queue_size = 1)
         self.__publishers.append(self.__servo_jr_publisher)
         # add attributes to class instance
         self.__class_instance.servo_jr = self.__servo_jr
@@ -688,7 +708,7 @@ class utils:
         # create the subscriber and keep in list
         self.__servo_cp_publisher = rospy.Publisher(self.__ros_namespace + '/servo_cp',
                                                     geometry_msgs.msg.PoseStamped,
-                                                    latch = True, queue_size = 1)
+                                                    latch = False, queue_size = 1)
         self.__publishers.append(self.__servo_cp_publisher)
         # add attributes to class instance
         self.__class_instance.servo_cp = self.__servo_cp
@@ -709,7 +729,7 @@ class utils:
         # create the subscriber and keep in list
         self.__servo_jf_publisher = rospy.Publisher(self.__ros_namespace + '/servo_jf',
                                                     sensor_msgs.msg.JointState,
-                                                    latch = True, queue_size = 1)
+                                                    latch = False, queue_size = 1)
         self.__publishers.append(self.__servo_jf_publisher)
         # add attributes to class instance
         self.__class_instance.servo_jf = self.__servo_jf
@@ -735,7 +755,7 @@ class utils:
         # create the subscriber and keep in list
         self.__servo_cf_publisher = rospy.Publisher(self.__ros_namespace + '/servo_cf',
                                                     geometry_msgs.msg.WrenchStamped,
-                                                    latch = True, queue_size = 1)
+                                                    latch = False, queue_size = 1)
         self.__publishers.append(self.__servo_cf_publisher)
         # add attributes to class instance
         self.__class_instance.servo_cf = self.__servo_cf
@@ -758,7 +778,7 @@ class utils:
         # create the subscriber and keep in list
         self.__move_jp_publisher = rospy.Publisher(self.__ros_namespace + '/move_jp',
                                                    sensor_msgs.msg.JointState,
-                                                   latch = True, queue_size = 1)
+                                                   latch = False, queue_size = 1)
         self.__publishers.append(self.__move_jp_publisher)
         # add attributes to class instance
         self.__class_instance.move_jp = self.__move_jp
@@ -781,7 +801,7 @@ class utils:
         # create the subscriber and keep in list
         self.__move_jr_publisher = rospy.Publisher(self.__ros_namespace + '/move_jr',
                                                    sensor_msgs.msg.JointState,
-                                                   latch = True, queue_size = 1)
+                                                   latch = False, queue_size = 1)
         self.__publishers.append(self.__move_jr_publisher)
         # add attributes to class instance
         self.__class_instance.move_jr = self.__move_jr
@@ -804,7 +824,7 @@ class utils:
         # create the subscriber and keep in list
         self.__move_cp_publisher = rospy.Publisher(self.__ros_namespace + '/move_cp',
                                                     geometry_msgs.msg.PoseStamped,
-                                                    latch = True, queue_size = 1)
+                                                    latch = False, queue_size = 1)
         self.__publishers.append(self.__move_cp_publisher)
         # add attributes to class instance
         self.__class_instance.move_cp = self.__move_cp
