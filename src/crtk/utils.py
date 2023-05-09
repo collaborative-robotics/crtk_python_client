@@ -15,6 +15,7 @@ import geometry_msgs.msg
 import sensor_msgs.msg
 import tf_conversions.posemath
 import crtk_msgs.msg
+import crtk_msgs.srv
 import crtk.wait_move_handle
 
 def TransformFromMsg(t):
@@ -92,6 +93,7 @@ class utils:
         self.__expected_interval = expected_interval
         self.__subscribers = []
         self.__publishers = []
+        self.__service_proxies = []
         self.__attributes = []
         rospy.on_shutdown(self.__ros_shutdown)
 
@@ -828,3 +830,52 @@ class utils:
         self.__publishers.append(self.__move_cp_publisher)
         # add attributes to class instance
         self.__class_instance.move_cp = self.__move_cp
+
+
+    # internal methods for forward_kinematics
+    def __forward_kinematics(self, jp, extra = None):
+        # convert to ROS msg and publish
+        request = crtk_msgs.srv.QueryForwardKinematicsRequest()
+        request.jp[:] = jp.flat
+        response = self.__forward_kinematics_service_proxy(request)
+        if not extra:
+            return tf_conversions.posemath.fromMsg(response.cp);
+        else:
+            return [tf_conversions.posemath.fromMsg(response.cp), response.result, response.message]
+
+    def add_forward_kinematics(self):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(self.__class_instance, 'forward_kinematics'):
+            raise RuntimeWarning('forward_kinematics already exists')
+        # create the service proxy and keep in list
+        self.__forward_kinematics_service_proxy = rospy.ServiceProxy(self.__ros_namespace + '/forward_kinematics',
+                                                                     crtk_msgs.srv.QueryForwardKinematics)
+        self.__service_proxies.append(self.__forward_kinematics_service_proxy)
+        # add attributes to class instance
+        self.__class_instance.forward_kinematics = self.__forward_kinematics
+
+
+    # internal methods for inverse_kinematics
+    def __inverse_kinematics(self, jp, cp, extra = None):
+        # convert to ROS msg and publish
+        request = crtk_msgs.srv.QueryInverseKinematicsRequest()
+        request.jp[:] = jp.flat
+        request.cp = tf_conversions.posemath.toMsg(cp)
+        response = self.__inverse_kinematics_service_proxy(request)
+        if not extra:
+            return numpy.array(response.jp)
+        else:
+            return [numpy.array(response.jp), response.result, response.message]
+
+    def add_inverse_kinematics(self):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(self.__class_instance, 'inverse_kinematics'):
+            raise RuntimeWarning('inverse_kinematics already exists')
+        # create the service proxy and keep in list
+        self.__inverse_kinematics_service_proxy = rospy.ServiceProxy(self.__ros_namespace + '/inverse_kinematics',
+                                                                     crtk_msgs.srv.QueryInverseKinematics)
+        self.__service_proxies.append(self.__inverse_kinematics_service_proxy)
+        # add attributes to class instance
+        self.__class_instance.inverse_kinematics = self.__inverse_kinematics
