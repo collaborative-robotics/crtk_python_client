@@ -289,7 +289,7 @@ class utils:
         if hasattr(self.__class_instance, 'operating_state'):
             raise RuntimeWarning('operating_state already exists')
         # data
-        self.__operating_state_data = crtk_msgs.msg.operating_state()
+        self.__operating_state_data = crtk_msgs.msg.OperatingState()
         self.__operating_state_event = threading.Event()
 
         # determine namespace to use
@@ -300,7 +300,7 @@ class utils:
 
         # create the subscriber/publisher and keep in list
         self.__operating_state_subscriber = rospy.Subscriber(namespace_to_use + '/operating_state',
-                                                             crtk_msgs.msg.operating_state, self.__operating_state_cb)
+                                                             crtk_msgs.msg.OperatingState, self.__operating_state_cb)
         self.__subscribers.append(self.__operating_state_subscriber)
         self.__state_command_publisher = rospy.Publisher(namespace_to_use + '/state_command',
                                                                    crtk_msgs.msg.StringStamped,
