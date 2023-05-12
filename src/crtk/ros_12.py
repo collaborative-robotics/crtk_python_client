@@ -19,6 +19,10 @@ class ros_12:
         rospy.init_node(self.__node_name, anonymous = True)
 
     @staticmethod
+    def ros_version():
+        return 1
+
+    @staticmethod
     def parse_argv(argv):
         # strip ros arguments
         return rospy.myargv(argv)
