@@ -106,6 +106,10 @@ class utils:
             self.__operating_state_event.set()
 
 
+    def __now(self):
+        return rospy.Time.now()
+
+
     def remove_all(self):
         for sub in self.__subscribers:
             sub.unregister()
@@ -119,13 +123,13 @@ class utils:
 
     def __wait_for_valid_data(self, data, event, age, wait):
         event.clear()
-        if age == None:
+        if age is None:
             age = self.__expected_interval
-        if wait == None:
+        if wait is None:
             wait = self.__expected_interval
         # check if user accepts cached data
         if age != 0.0:
-            data_age = rospy.Time.now() - data.header.stamp
+            data_age = self.__now() - data.header.stamp
             if data_age <= rospy.Duration(age):
                 return True
         if wait != 0.0:
@@ -152,7 +156,7 @@ class utils:
     def __wait_for_operating_state(self, expected_state, timeout):
         if timeout < 0.0:
             return False
-        start_time = time.time()
+        start_time = self.__now()
         in_time = self.__operating_state_event.wait(timeout)
         if rospy.is_shutdown():
             return False;
@@ -162,9 +166,9 @@ class utils:
                 return True
             else:
                 # wait a bit more
-                elapsed_time = time.time() - start_time
+                elapsed_time = self.__now() - start_time
                 self.__operating_state_event.clear()
-                return self.__wait_for_operating_state(expected_state, timeout - elapsed_time)
+                return self.__wait_for_operating_state(expected_state, timeout - elapsed_time.to_sec())
         # past timeout
         return False
 
@@ -209,7 +213,7 @@ class utils:
     def __wait_for_homed(self, timeout, expected_homed):
         if timeout < 0.0:
             return False
-        start_time = time.time()
+        start_time = self.__now()
         self.__operating_state_event.clear()
         in_time = self.__operating_state_event.wait(timeout)
         if rospy.is_shutdown():
@@ -220,8 +224,8 @@ class utils:
                 return True
             else:
                 # wait a bit more
-                elapsed_time = time.time() - start_time
-                return self.__wait_for_homed(timeout - elapsed_time, expected_homed)
+                elapsed_time = self.__now() - start_time
+                return self.__wait_for_homed(timeout - elapsed_time.to_sec(), expected_homed)
         # past timeout
         return False
 
@@ -242,8 +246,11 @@ class utils:
         return self.__wait_for_homed(timeout, False)
 
     def __is_busy(self,
-                  start_time = rospy.Time(0.0),
+                  start_time = None,
                   extra = None):
+        # set start time to now if not specified
+        if start_time is None:
+            start_time = self.__now()
         result = True
         if (self.__operating_state_data.header.stamp > start_time):
             result = self.__operating_state_data.is_busy
@@ -255,35 +262,37 @@ class utils:
 
     def __wait_for_busy(self,
                         is_busy = False,
-                        start_time = rospy.Time(0.0),
+                        start_time = None,
                         timeout = 30.0):
         # if timeout is negative, not waiting
         if timeout < 0.0:
             return False
-        # if start_time 0.0, user provided a start time and we should
-        # check if an event arrived after start_time
-        if start_time > rospy.Time(0.0):
-            if (self.__operating_state_data.header.stamp > start_time
-                and self.__operating_state_data.is_busy == is_busy):
+        # set start time to now if not specified
+        if start_time is None:
+            start_time = self.__now()
+        else:
+            # user provided start_time, check if an event arrived after start_time
+            last_event_time = self.__operating_state_data.header.stamp
+            if (last_event_time > start_time and self.__operating_state_data.is_busy == is_busy):
                 return True
+
         # other cases, waiting for an operating_state event
-        _start_time = time.time()
+        _start_time = self.__now()
         self.__operating_state_event.clear()
         in_time = self.__operating_state_event.wait(timeout)
-        if rospy.is_shutdown():
+        if rospy.is_shutdown() or not in_time:
             return False;
-        if in_time:
-            # within timeout and result we expected
-            if self.__operating_state_data.is_busy == is_busy:
-                return True
-            else:
-                # wait a bit more
-                elapsed_time = time.time() - _start_time
-                return self.__wait_for_busy(is_busy = is_busy,
-                                            start_time = start_time,
-                                            timeout = (timeout - elapsed_time))
-        # past timeout
-        return False
+
+        # within timeout and result we expected
+        if self.__operating_state_data.is_busy == is_busy:
+            return True
+        else:
+            # wait a bit more
+            elapsed_time = self.__now() - _start_time
+            self.__operating_state_event.clear()
+            return self.__wait_for_busy(is_busy = is_busy,
+                                        start_time = start_time,
+                                        timeout = (timeout - elapsed_time.to_sec()))
 
     def add_operating_state(self, optional_ros_namespace = None):
         # throw a warning if this has alread been added to the class,
@@ -295,14 +304,15 @@ class utils:
         self.__operating_state_event = threading.Event()
 
         # determine namespace to use
-        if optional_ros_namespace == None:
+        if optional_ros_namespace is None:
             namespace_to_use = self.__ros_namespace
         else:
             namespace_to_use = optional_ros_namespace
 
         # create the subscriber/publisher and keep in list
         self.__operating_state_subscriber = rospy.Subscriber(namespace_to_use + '/operating_state',
-                                                             crtk_msgs.msg.OperatingState, self.__operating_state_cb)
+                                                             crtk_msgs.msg.OperatingState, self.__operating_state_cb,
+                                                             queue_size = 10)
         self.__subscribers.append(self.__operating_state_subscriber)
         self.__state_command_publisher = rospy.Publisher(namespace_to_use + '/state_command',
                                                                    crtk_msgs.msg.StringStamped,
@@ -654,10 +664,11 @@ class utils:
 
 
     # internal methods for servo_jp
-    def __servo_jp(self, setpoint):
+    def __servo_jp(self, setpoint_p, setpoint_v = numpy.array([])):
         # convert to ROS msg and publish
         msg = sensor_msgs.msg.JointState()
-        msg.position[:] = setpoint.flat
+        msg.position[:] = setpoint_p.flat
+        msg.velocity[:] = setpoint_v.flat
         self.__servo_jp_publisher.publish(msg)
 
     def add_servo_jp(self):
