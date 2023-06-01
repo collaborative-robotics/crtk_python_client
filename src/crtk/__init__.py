@@ -4,7 +4,7 @@
 # Copyright (c) 2016-2023 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
 # Released under MIT License
 
-__all__ = ["ros_12", "wait_move_handle", "utils", "measured_cp"]
+__all__ = ["ros_12", "wait_move_handle", "utils", "joystick_button", "measured_cp"]
 
 # wrappers
 from .ros_12 import ros_12
@@ -14,6 +14,7 @@ from .wait_move_handle import wait_move_handle
 
 # utilities
 from .utils import utils
+from .joystick_button import joystick_button
 
 # example classes
 from .measured_cp import measured_cp
