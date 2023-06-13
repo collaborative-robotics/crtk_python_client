@@ -774,6 +774,32 @@ class utils:
         self.__class_instance.servo_cf = self.__servo_cf
 
 
+    # internal methods for servo_cv
+    def __servo_cv(self, setpoint):
+        # convert to ROS msg and publish
+        msg = geometry_msgs.msg.TwistStamped()
+        msg.Twist.linear.x = setpoint[0]
+        msg.Twist.linear.y = setpoint[1]
+        msg.Twist.linear.z = setpoint[2]
+        msg.Twist.angular.x = setpoint[3]
+        msg.Twist.angular.y = setpoint[4]
+        msg.Twist.angular.z = setpoint[5]
+        self.__servo_cv_publisher.publish(msg)
+
+    def add_servo_cv(self):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(self.__class_instance, 'servo_cv'):
+            raise RuntimeWarning('servo_cv already exists')
+        # create the subscriber and keep in list
+        self.__servo_cv_publisher = rospy.Publisher(self.__ros_namespace + '/servo_cv',
+                                                    geometry_msgs.msg.TwistStamped,
+                                                    latch = True, queue_size = 1)
+        self.__publishers.append(self.__servo_cv_publisher)
+        # add attributes to class instance
+        self.__class_instance.servo_cv = self.__servo_cv
+
+
     # internal methods for move_jp
     def __move_jp(self, setpoint):
         # convert to ROS msg and publish
