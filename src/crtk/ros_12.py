@@ -42,5 +42,5 @@ class ros_12:
     def namespace(self):
         return self.__namespace
 
-    def spin_and_execute(self, function):
-        function()
+    def spin_and_execute(self, function, *arguments):
+        function(*arguments)
