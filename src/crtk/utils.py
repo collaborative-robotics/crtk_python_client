@@ -663,6 +663,26 @@ class utils:
         self.__class_instance.hold = self.__hold
 
 
+    # internal methods for free
+    def __free(self):
+        # convert to ROS msg and publish
+        msg = std_msgs.msg.Empty()
+        self.__free_publisher.publish(msg)
+
+    def add_free(self):
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(self.__class_instance, 'free'):
+            raise RuntimeWarning('free already exists')
+        # create the subscriber and keep in list
+        self.__free_publisher = rospy.Publisher(self.__ros_namespace + '/free',
+                                                    std_msgs.msg.Empty,
+                                                    latch = False, queue_size = 1)
+        self.__publishers.append(self.__free_publisher)
+        # add attributes to class instance
+        self.__class_instance.free = self.__free
+
+
     # internal methods for servo_jp
     def __servo_jp(self, setpoint_p, setpoint_v = numpy.array([])):
         # convert to ROS msg and publish
