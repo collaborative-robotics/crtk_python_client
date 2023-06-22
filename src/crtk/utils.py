@@ -156,7 +156,7 @@ class utils:
             if len(unconnected) == 0:
                 break
 
-            rospy.sleep(0.2)
+            rospy.sleep(0.01)
 
         # last check of connection status, raise error if any remain unconnected
         unconnected_publishers = [p for p in self.__publishers if not connected(p)]
