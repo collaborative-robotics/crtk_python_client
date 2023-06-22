@@ -137,6 +137,42 @@ class utils:
                 return True
         return False
 
+    # check that all publishers are connected to at least one subscriber,
+    # and that all subscribers are connected to at least on publisher.
+    # if timeout_seconds is zero, no checks will be done
+    def check_connections(self, timeout_seconds):
+        if timeout_seconds <= 0.0:
+            return
+
+        start_time = rospy.Time.now()
+        timeout_duration = rospy.Duration(timeout_seconds)
+
+        connected = lambda pubsub: pubsub.get_num_connections() > 0
+
+        # wait at most timeout_seconds for all connections to establish
+        while (rospy.Time.now() - start_time) < timeout_duration:
+            pubsubs = self.__publishers + self.__subscribers
+            unconnected = [ps for ps in pubsubs if not connected(ps)]
+            if len(unconnected) == 0:
+                break
+
+            rospy.sleep(0.2)
+
+        # last check of connection status, raise error if any remain unconnected
+        unconnected_publishers = [p for p in self.__publishers if not connected(p)]
+        unconnected_subscribers = [s for s in self.__subscribers if not connected(s)]
+        if len(unconnected_publishers) == 0 and len(unconnected_subscribers) == 0:
+            return
+
+        err_msg = \
+        (
+            f"Timed out while waiting for publisher/subscriber connections to establish\n"
+            f"    Publishers:  {len(self.__publishers) - len(unconnected_publishers)} connected, {len(unconnected_publishers)} not connected\n"
+            f"                 not connected: [{', '.join([p.name for p in unconnected_publishers])}]\n\n"
+            f"    Subscribers: {len(self.__subscribers) - len(unconnected_subscribers)} connected, {len(unconnected_subscribers)} not connected\n"
+            f"                 not connected: [{', '.join([s.name for s in unconnected_subscribers])}]\n\n"
+        )
+        raise TimeoutError(err_msg)
 
     # internal methods to manage state
     def __operating_state_cb(self, msg):
