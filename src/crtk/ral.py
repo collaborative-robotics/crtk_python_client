@@ -122,29 +122,20 @@ class ral:
                                queue_size = queue_size, *args, **kwargs)
         self.__subscribers.append(sub)
         return sub
-    
+
     def service_client(self, name, srv_type):
         client = rospy.ServiceProxy(self.add_namespace(name), srv_type)
         self.__services.append(client)
         return client
-    
+
     def get_topic(self, pubsub):
         return pubsub.name
 
-    def check_connections(self, timeout_seconds):
-        """Check that all publishers are connected to at least one subscriber,
-        and that all subscribers are connected to at least on publisher.
-        
-        If timeout_seconds is zero, no checks will be done.
-        """
-        if timeout_seconds <= 0.0:
-            return
-
-        start_time = self.now()
-        timeout_duration = self.duration(timeout_seconds)
-        rate = rospy.Rate(100)
-
+    def __check_connections(self, start_time, timeout_duration, check_children):
+        check_rate = rospy.Rate(100)
         connected = lambda pubsub: pubsub.get_num_connections() > 0
+
+        print(f"Checking connections in {self.namespace()}")
 
         # wait at most timeout_seconds for all connections to establish
         while (self.now() - start_time) < timeout_duration:
@@ -153,7 +144,13 @@ class ral:
             if len(unconnected) == 0:
                 break
 
-            rate.sleep()
+            check_rate.sleep()
+
+        if check_children:
+            # recursively check connections in all child ral objects,
+            # using same start time so the timeout period doesn't restart
+            for _, child in self.__children.items():
+                child.__check_connections(start_time, timeout_duration, check_children)
 
         # last check of connection status, raise error if any remain unconnected
         unconnected_pubs = [p for p in self.__publishers if not connected(p)]
@@ -177,3 +174,16 @@ class ral:
             f"                 not connected: [{unconnected_sub_names}]\n\n"
         )
         raise TimeoutError(err_msg)
+
+    def check_connections(self, timeout_seconds, check_children = True):
+        """Check that all publishers are connected to at least one subscriber,
+        and that all subscribers are connected to at least on publisher.
+
+        If timeout_seconds is zero, no checks will be done.
+        If check_children is True, all children will be checked as well.
+        """
+
+        start_time = self.now()
+        timeout_duration = self.duration(timeout_seconds)
+
+        self.__check_connections(start_time, timeout_duration, check_children)
