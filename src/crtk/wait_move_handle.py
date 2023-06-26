@@ -5,13 +5,13 @@
 # Released under MIT License
 
 class wait_move_handle:
-    def __init__(self, class_instance, ros_12):
+    def __init__(self, class_instance, ral):
         self.__class_instance = class_instance
-        self.__ros_12 = ros_12
-        self.__start_time = ros_12.now()
+        self.__ral = ral
+        self.__start_time = ral.now()
 
     def wait(self, is_busy = False, timeout = 30.0):
-        if self.__ros_12.is_shutdown():
+        if self.__ral.is_shutdown():
             return False
         if self.__class_instance:
             return self.__class_instance.wait_for_busy(is_busy = is_busy,
@@ -22,7 +22,7 @@ class wait_move_handle:
 
     def is_busy(self, timeout = 30.0):
         # if we keep asking past timeout, throw an exception
-        if (self.__ros_12.now() - self.__start_time) > self.__ros_12.duration(timeout):
+        if (self.__ral.now() - self.__start_time) > self.__ral.duration(timeout):
             raise RuntimeWarning('is_busy past timeout')
         # else, check if we have a new state after start time and return is_busy
         if self.__class_instance:

@@ -7,9 +7,13 @@
 import rospy
 
 
-class ros_12:
-    """Class used to wrap rospy so we can write code independent of ROS version."""
-
+class ral:
+    """RAL: ROS abstraction layer
+    
+    Provides many common parts of rospy/rclpy via a common API, to allow CRTK code to
+    be written at a higher level, and to work for both ROS 1 and ROS 2.
+    """
+    
     @staticmethod
     def ros_version():
         return 1
@@ -44,11 +48,11 @@ class ros_12:
 
     def create_child(self, child_namespace):
         if child_namespace in self.__children:
-            raise RuntimeError('ros_12 already has child "{child_namespace}"!')
+            raise RuntimeError('ral object already has child "{child_namespace}"!')
 
         child_namespace = child_namespace.strip('/')
         child_full_namespace = f'{self.namespace()}/{child_namespace}'
-        child = ros_12(self.node_name(), child_full_namespace, self)
+        child = ral(self.node_name(), child_full_namespace, self)
         self.__children[child_namespace] = child
         return child
     

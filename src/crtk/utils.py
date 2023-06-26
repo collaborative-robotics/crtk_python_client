@@ -28,20 +28,20 @@ class utils:
     move command).
 
     class_instance : object that will be populated
-    ros_12 : ros_12 object for the device namespace
+    ral : ral object for the device namespace
     expected_interval : expected interval at which the device sends its motion state (measured, setpoint, goal)
     """
     def __init__(self,
                  class_instance,
-                 ros_12,
+                 ral,
                  expected_interval = 0.02,
                  operating_state_instance = None):
         self.__class_instance = class_instance
         self.__operating_state_instance = operating_state_instance
-        self.__ros_12 = ros_12
+        self.__ral = ral
         self.__expected_interval = expected_interval
 
-        self.__ros_12.on_shutdown(self.__ros_shutdown)
+        self.__ral.on_shutdown(self.__ros_shutdown)
 
     def __ros_shutdown(self):
         if hasattr(self, '_utils__operating_state_event'):
@@ -55,8 +55,8 @@ class utils:
             wait = self.__expected_interval
         # check if user accepts cached data
         if age != 0.0:
-            data_age = self.__ros_12.now() - self.__ros_12.timestamp(data)
-            if data_age <= self.__ros_12.duration(age):
+            data_age = self.__ral.now() - self.__ral.timestamp(data)
+            if data_age <= self.__ral.duration(age):
                 return True
         if wait != 0.0:
             if event.wait(wait):
@@ -75,14 +75,14 @@ class utils:
             return self.__operating_state_data.state
         else:
             return [self.__operating_state_data.state,
-                    self.__ros_12.timestamp_secs(self.__operating_state_data)]
+                    self.__ral.timestamp_secs(self.__operating_state_data)]
 
     def __wait_for_operating_state(self, expected_state, timeout):
         if timeout < 0.0:
             return False
-        start_time = self.__ros_12.now()
+        start_time = self.__ral.now()
         in_time = self.__operating_state_event.wait(timeout)
-        if self.__ros_12.is_shutdown():
+        if self.__ral.is_shutdown():
             return False
 
         if in_time:
@@ -91,7 +91,7 @@ class utils:
                 return True
             else:
                 # wait a bit more
-                elapsed_time = self.__ros_12.to_secs(self.__ros_12.now() - start_time)
+                elapsed_time = self.__ral.to_secs(self.__ral.now() - start_time)
                 self.__operating_state_event.clear()
                 return self.__wait_for_operating_state(expected_state = expected_state,
                                                        timeout = timeout - elapsed_time)
@@ -134,15 +134,15 @@ class utils:
             return self.__operating_state_data.is_homed
         else:
             return [self.__operating_state_data.is_homed,
-                    self.__ros_12.timestamp_secs(self.__operating_state_data)]
+                    self.__ral.timestamp_secs(self.__operating_state_data)]
 
     def __wait_for_homed(self, timeout, expected_homed):
         if timeout < 0.0:
             return False
-        start_time = self.__ros_12.now()
+        start_time = self.__ral.now()
         self.__operating_state_event.clear()
         in_time = self.__operating_state_event.wait(timeout)
-        if self.__ros_12.is_shutdown():
+        if self.__ral.is_shutdown():
             return False
 
         if in_time:
@@ -151,7 +151,7 @@ class utils:
                 return True
             else:
                 # wait a bit more
-                elapsed_time = self.__ros_12.to_secs(self.__ros_12.now() - start_time)
+                elapsed_time = self.__ral.to_secs(self.__ral.now() - start_time)
                 self.__operating_state_event.clear()
                 return self.__wait_for_homed(expected_homed = expected_homed,
                                              timeout = timeout - elapsed_time)
@@ -179,15 +179,15 @@ class utils:
                   extra = None):
         # set start time to now if not specified
         if start_time is None:
-            start_time = self.__ros_12.now()
+            start_time = self.__ral.now()
         result = True
-        if self.__ros_12.timestamp(self.__operating_state_data) > start_time:
+        if self.__ral.timestamp(self.__operating_state_data) > start_time:
             result = self.__operating_state_data.is_busy
         if not extra:
             return result
         else:
             return [result,
-                    self.__ros_12.timestamp_secs(self.__operating_state_data)]
+                    self.__ral.timestamp_secs(self.__operating_state_data)]
 
     def __wait_for_busy(self,
                         is_busy = False,
@@ -198,19 +198,19 @@ class utils:
             return False
         # set start time to now if not specified
         if start_time is None:
-            start_time = self.__ros_12.now()
+            start_time = self.__ral.now()
         else:
             # user provided start_time, check if an event arrived after start_time
-            last_event_time = self.__ros_12.timestamp(self.__operating_state_data)
+            last_event_time = self.__ral.timestamp(self.__operating_state_data)
             if (last_event_time > start_time and self.__operating_state_data.is_busy == is_busy):
                 return True
 
         # other cases, waiting for an operating_state event
-        _start_time = self.__ros_12.now()
+        _start_time = self.__ral.now()
         self.__operating_state_event.clear()
         in_time = self.__operating_state_event.wait(timeout)
         # past timeout
-        if self.__ros_12.is_shutdown() or not in_time:
+        if self.__ral.is_shutdown() or not in_time:
             return False
 
         # within timeout and result we expected
@@ -218,7 +218,7 @@ class utils:
             return True
         else:
             # wait a bit more
-            elapsed_time = self.__ros_12.to_secs(self.__ros_12.now() - _start_time)
+            elapsed_time = self.__ral.to_secs(self.__ral.now() - _start_time)
             self.__operating_state_event.clear()
             return self.__wait_for_busy(is_busy = is_busy,
                                         start_time = start_time,
@@ -234,14 +234,14 @@ class utils:
         self.__operating_state_event = threading.Event()
 
         # create the subscriber/publisher
-        self.__operating_state_subscriber = self.__ros_12.subscriber(
+        self.__operating_state_subscriber = self.__ral.subscriber(
             'operating_state',
             crtk_msgs.msg.OperatingState,
             self.__operating_state_cb,
             queue_size = 10
         )
 
-        self.__state_command_publisher = self.__ros_12.publisher(
+        self.__state_command_publisher = self.__ral.publisher(
             'state_command',
             crtk_msgs.msg.StringStamped,
             latch = True, queue_size = 10
@@ -263,7 +263,7 @@ class utils:
         if not self.__operating_state_instance:
             self.__operating_state_instance = self.__class_instance
         else:
-            raise RuntimeWarning('over writting operating state for ' + self.__ros_12.namespace())
+            raise RuntimeWarning('over writting operating state for ' + self.__ral.namespace())
 
     # internal methods for setpoint_js
     def __setpoint_js_cb(self, msg):
@@ -277,8 +277,8 @@ class utils:
             return [numpy.array(self.__setpoint_js_data.position),
                     numpy.array(self.__setpoint_js_data.velocity),
                     numpy.array(self.__setpoint_js_data.effort),
-                    self.__ros_12.timestamp_secs(self.__setpoint_js_data)]
-        raise RuntimeWarning('unable to get setpoint_js ({})'.format(self.__ros_12.get_topic(self.__setpoint_js_subscriber)))
+                    self.__ral.timestamp_secs(self.__setpoint_js_data)]
+        raise RuntimeWarning('unable to get setpoint_js ({})'.format(self.__ral.get_topic(self.__setpoint_js_subscriber)))
 
     def __setpoint_jp(self, age = None, wait = None, extra = None):
         """Joint Position Setpoint.  Default age and wait are set to
@@ -295,8 +295,8 @@ class utils:
                 return numpy.array(self.__setpoint_js_data.position)
             else:
                 return [numpy.array(self.__setpoint_js_data.position),
-                        self.__ros_12.timestamp_secs(self.__setpoint_js_data)]
-        raise RuntimeWarning('unable to get setpoint_jp ({})'.format(self.__ros_12.get_topic(self.__setpoint_js_subscriber)))
+                        self.__ral.timestamp_secs(self.__setpoint_js_data)]
+        raise RuntimeWarning('unable to get setpoint_jp ({})'.format(self.__ral.get_topic(self.__setpoint_js_subscriber)))
 
     def __setpoint_jv(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__setpoint_js_data,
@@ -306,8 +306,8 @@ class utils:
                 return numpy.array(self.__setpoint_js_data.velocity)
             else:
                 return [numpy.array(self.__setpoint_js_data.velocity),
-                        self.__ros_12.timestamp_secs(self.__setpoint_js_data)]
-        raise RuntimeWarning('unable to get setpoint_jv ({})'.format(self.__ros_12.get_topic(self.__setpoint_js_subscriber)))
+                        self.__ral.timestamp_secs(self.__setpoint_js_data)]
+        raise RuntimeWarning('unable to get setpoint_jv ({})'.format(self.__ral.get_topic(self.__setpoint_js_subscriber)))
 
     def __setpoint_jf(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__setpoint_js_data,
@@ -317,8 +317,8 @@ class utils:
                 return numpy.array(self.__setpoint_js_data.effort)
             else:
                 return [numpy.array(self.__setpoint_js_data.effort),
-                        self.__ros_12.timestamp_secs(self.__setpoint_js_data)]
-        raise RuntimeWarning('unable to get setpoint_jf ({})'.format(self.__ros_12.get_topic(self.__setpoint_js_subscriber)))
+                        self.__ral.timestamp_secs(self.__setpoint_js_data)]
+        raise RuntimeWarning('unable to get setpoint_jf ({})'.format(self.__ral.get_topic(self.__setpoint_js_subscriber)))
 
     def add_setpoint_js(self):
         # throw a warning if this has alread been added to the class,
@@ -329,7 +329,7 @@ class utils:
         self.__setpoint_js_data = sensor_msgs.msg.JointState()
         self.__setpoint_js_event = threading.Event()
         # create the subscriber
-        self.__setpoint_js_subscriber = self.__ros_12.subscriber(
+        self.__setpoint_js_subscriber = self.__ral.subscriber(
             'setpoint_js',
             sensor_msgs.msg.JointState,
             self.__setpoint_js_cb,
@@ -357,8 +357,8 @@ class utils:
                 return msg_conv.FrameFromPoseMsg(self.__setpoint_cp_data.pose)
             else:
                 return [msg_conv.FrameFromPoseMsg(self.__setpoint_cp_data.pose),
-                        self.__ros_12.timestamp_secs(self.__setpoint_cp_data)]
-        raise RuntimeWarning('unable to get setpoint_cp ({})'.format(self.__ros_12.get_topic(self.__setpoint_cp_subscriber)))
+                        self.__ral.timestamp_secs(self.__setpoint_cp_data)]
+        raise RuntimeWarning('unable to get setpoint_cp ({})'.format(self.__ral.get_topic(self.__setpoint_cp_subscriber)))
 
     def add_setpoint_cp(self):
         # throw a warning if this has alread been added to the class,
@@ -370,7 +370,7 @@ class utils:
         self.__setpoint_cp_event = threading.Event()
         self.__setpoint_cp_lock = False
         # create the subscriber
-        self.__setpoint_cp_subscriber = self.__ros_12.subscriber(
+        self.__setpoint_cp_subscriber = self.__ral.subscriber(
             'setpoint_cp',
             geometry_msgs.msg.PoseStamped,
             self.__setpoint_cp_cb,
@@ -392,8 +392,8 @@ class utils:
             return [numpy.array(self.__measured_js_data.position),
                     numpy.array(self.__measured_js_data.velocity),
                     numpy.array(self.__measured_js_data.effort),
-                    self.__ros_12.timestamp_secs(self.__measured_js_data)]
-        raise RuntimeWarning('unable to get measured_js ({})'.format(self.__ros_12.get_topic(self.__measured_js_subscriber)))
+                    self.__ral.timestamp_secs(self.__measured_js_data)]
+        raise RuntimeWarning('unable to get measured_js ({})'.format(self.__ral.get_topic(self.__measured_js_subscriber)))
 
     def __measured_jp(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__measured_js_data,
@@ -403,8 +403,8 @@ class utils:
                 return numpy.array(self.__measured_js_data.position)
             else:
                 return [numpy.array(self.__measured_js_data.position),
-                        self.__ros_12.timestamp_secs(self.__measured_js_data)]
-        raise RuntimeWarning('unable to get measured_jp ({})'.format(self.__ros_12.get_topic(self.__measured_js_subscriber)))
+                        self.__ral.timestamp_secs(self.__measured_js_data)]
+        raise RuntimeWarning('unable to get measured_jp ({})'.format(self.__ral.get_topic(self.__measured_js_subscriber)))
 
     def __measured_jv(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__measured_js_data,
@@ -414,8 +414,8 @@ class utils:
                 return numpy.array(self.__measured_js_data.velocity)
             else:
                 return [numpy.array(self.__measured_js_data.velocity),
-                        self.__ros_12.timestamp_secs(self.__measured_js_data)]
-        raise RuntimeWarning('unable to get measured_jv ({})'.format(self.__ros_12.get_topic(self.__measured_js_subscriber)))
+                        self.__ral.timestamp_secs(self.__measured_js_data)]
+        raise RuntimeWarning('unable to get measured_jv ({})'.format(self.__ral.get_topic(self.__measured_js_subscriber)))
 
     def __measured_jf(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__measured_js_data,
@@ -425,8 +425,8 @@ class utils:
                 return numpy.array(self.__measured_js_data.effort)
             else:
                 return [numpy.array(self.__measured_js_data.effort),
-                        self.__ros_12.timestamp_secs(self.__measured_js_data)]
-        raise RuntimeWarning('unable to get measured_jf ({})'.format(self.__ros_12.get_topic(self.__measured_js_subscriber)))
+                        self.__ral.timestamp_secs(self.__measured_js_data)]
+        raise RuntimeWarning('unable to get measured_jf ({})'.format(self.__ral.get_topic(self.__measured_js_subscriber)))
 
     def add_measured_js(self):
         # throw a warning if this has alread been added to the class,
@@ -437,7 +437,7 @@ class utils:
         self.__measured_js_data = sensor_msgs.msg.JointState()
         self.__measured_js_event = threading.Event()
         # create the subscriber
-        self.__measured_js_subscriber = self.__ros_12.subscriber(
+        self.__measured_js_subscriber = self.__ral.subscriber(
             'measured_js',
             sensor_msgs.msg.JointState,
             self.__measured_js_cb
@@ -462,8 +462,8 @@ class utils:
                 return msg_conv.FrameFromPoseMsg(self.__measured_cp_data.pose)
             else:
                 return [msg_conv.FrameFromPoseMsg(self.__measured_cp_data.pose),
-                        self.__ros_12.timestamp_secs(self.__measured_cp_data)]
-        raise RuntimeWarning('unable to get measured_cp ({})'.format(self.__ros_12.get_topic(self.__measured_cp_subscriber)))
+                        self.__ral.timestamp_secs(self.__measured_cp_data)]
+        raise RuntimeWarning('unable to get measured_cp ({})'.format(self.__ral.get_topic(self.__measured_cp_subscriber)))
 
     def add_measured_cp(self):
         # throw a warning if this has alread been added to the class,
@@ -474,7 +474,7 @@ class utils:
         self.__measured_cp_data = geometry_msgs.msg.PoseStamped()
         self.__measured_cp_event = threading.Event()
         # create the subscriber
-        self.__measured_cp_subscriber = self.__ros_12.subscriber(
+        self.__measured_cp_subscriber = self.__ral.subscriber(
             'measured_cp',
             geometry_msgs.msg.PoseStamped,
             self.__measured_cp_cb,
@@ -497,8 +497,8 @@ class utils:
                 return msg_conv.ArrayFromTwistMsg(self.__measured_cv_data.twist)
             else:
                 return [msg_conv.ArrayFromTwistMsg(self.__measured_cv_data.twist),
-                        self.__ros_12.timestamp_secs(self.__measured_cv_data)]
-        raise RuntimeWarning('unable to get measured_cv ({})'.format(self.__ros_12.get_topic(self.__measured_cv_subscriber)))
+                        self.__ral.timestamp_secs(self.__measured_cv_data)]
+        raise RuntimeWarning('unable to get measured_cv ({})'.format(self.__ral.get_topic(self.__measured_cv_subscriber)))
 
     def add_measured_cv(self):
         # throw a warning if this has alread been added to the class,
@@ -509,7 +509,7 @@ class utils:
         self.__measured_cv_data = geometry_msgs.msg.TwistStamped()
         self.__measured_cv_event = threading.Event()
         # create the subscriber
-        self.__measured_cv_subscriber = self.__ros_12.subscriber(
+        self.__measured_cv_subscriber = self.__ral.subscriber(
             'measured_cv',
             geometry_msgs.msg.TwistStamped,
             self.__measured_cv_cb,
@@ -532,8 +532,8 @@ class utils:
                 return msg_conv.ArrayFromWrenchMsg(self.__measured_cf_data.wrench)
             else:
                 return [msg_conv.ArrayFromWrenchMsg(self.__measured_cf_data.wrench),
-                        self.__ros_12.timestamp_secs(self.__measured_cf_data)]
-        raise RuntimeWarning('unable to get measured_cf ({})'.format(self.__ros_12.get_topic(self.__measured_cf_subscriber)))
+                        self.__ral.timestamp_secs(self.__measured_cf_data)]
+        raise RuntimeWarning('unable to get measured_cf ({})'.format(self.__ral.get_topic(self.__measured_cf_subscriber)))
 
     def add_measured_cf(self):
         # throw a warning if this has alread been added to the class,
@@ -544,7 +544,7 @@ class utils:
         self.__measured_cf_data = geometry_msgs.msg.WrenchStamped()
         self.__measured_cf_event = threading.Event()
         # create the subscriber
-        self.__measured_cf_subscriber = self.__ros_12.subscriber(
+        self.__measured_cf_subscriber = self.__ral.subscriber(
             'measured_cf',
             geometry_msgs.msg.WrenchStamped,
             self.__measured_cf_cb,
@@ -573,7 +573,7 @@ class utils:
         self.__jacobian_data = std_msgs.msg.Float64MultiArray()
         self.__jacobian_event = threading.Event()
         # create the subscriber
-        self.__jacobian_subscriber = self.__ros_12.subscriber(
+        self.__jacobian_subscriber = self.__ral.subscriber(
             'jacobian',
             std_msgs.msg.Float64MultiArray,
             self.__jacobian_cb,
@@ -595,7 +595,7 @@ class utils:
         if hasattr(self.__class_instance, 'hold'):
             raise RuntimeWarning('hold already exists')
         # create the subscriber
-        self.__hold_publisher = self.__ros_12.publisher(
+        self.__hold_publisher = self.__ral.publisher(
             'hold',
             std_msgs.msg.Empty,
             latch = False, queue_size = 10
@@ -616,7 +616,7 @@ class utils:
         if hasattr(self.__class_instance, 'free'):
             raise RuntimeWarning('free already exists')
         # create the subscriber
-        self.__free_publisher = self.__ros_12.publisher(
+        self.__free_publisher = self.__ral.publisher(
             'free',
             std_msgs.msg.Empty,
             latch = False, queue_size = 10
@@ -639,7 +639,7 @@ class utils:
         if hasattr(self.__class_instance, 'servo_jp'):
             raise RuntimeWarning('servo_jp already exists')
         # create the subscriber
-        self.__servo_jp_publisher = self.__ros_12.publisher(
+        self.__servo_jp_publisher = self.__ral.publisher(
             'servo_jp',
             sensor_msgs.msg.JointState,
             latch = False, queue_size = 10
@@ -661,7 +661,7 @@ class utils:
         if hasattr(self.__class_instance, 'servo_jr'):
             raise RuntimeWarning('servo_jr already exists')
         # create the subscriber
-        self.__servo_jr_publisher = self.__ros_12.publisher(
+        self.__servo_jr_publisher = self.__ral.publisher(
             'servo_jr',
             sensor_msgs.msg.JointState,
             latch = False, queue_size = 10
@@ -683,7 +683,7 @@ class utils:
         if hasattr(self.__class_instance, 'servo_cp'):
             raise RuntimeWarning('servo_cp already exists')
         # create the subscriber
-        self.__servo_cp_publisher = self.__ros_12.publisher(
+        self.__servo_cp_publisher = self.__ral.publisher(
             'servo_cp',
             geometry_msgs.msg.PoseStamped,
             latch = False, queue_size = 10
@@ -705,7 +705,7 @@ class utils:
         if hasattr(self.__class_instance, 'servo_jf'):
             raise RuntimeWarning('servo_jf already exists')
         # create the subscriber
-        self.__servo_jf_publisher = self.__ros_12.publisher(
+        self.__servo_jf_publisher = self.__ral.publisher(
             'servo_jf',
             sensor_msgs.msg.JointState,
             latch = False, queue_size = 10
@@ -732,7 +732,7 @@ class utils:
         if hasattr(self.__class_instance, 'servo_cf'):
             raise RuntimeWarning('servo_cf already exists')
         # create the subscriber
-        self.__servo_cf_publisher = self.__ros_12.publisher(
+        self.__servo_cf_publisher = self.__ral.publisher(
             'servo_cf',
             geometry_msgs.msg.WrenchStamped,
             latch = False, queue_size = 10
@@ -759,7 +759,7 @@ class utils:
         if hasattr(self.__class_instance, 'servo_cv'):
             raise RuntimeWarning('servo_cv already exists')
         # create the subscriber
-        self.__servo_cv_publisher = self.__ros_12.publisher(
+        self.__servo_cv_publisher = self.__ral.publisher(
             'servo_cv',
             geometry_msgs.msg.TwistStamped,
             latch = False, queue_size = 10
@@ -773,7 +773,7 @@ class utils:
         # convert to ROS msg and publish
         msg = sensor_msgs.msg.JointState()
         msg.position = setpoint.tolist()
-        handle = crtk.wait_move_handle(self.__operating_state_instance, self.__ros_12)
+        handle = crtk.wait_move_handle(self.__operating_state_instance, self.__ral)
         self.__move_jp_publisher.publish(msg)
         return handle
 
@@ -783,7 +783,7 @@ class utils:
         if hasattr(self.__class_instance, 'move_jp'):
             raise RuntimeWarning('move_jp already exists')
         # create the subscriber
-        self.__move_jp_publisher = self.__ros_12.publisher(
+        self.__move_jp_publisher = self.__ral.publisher(
             'move_jp',
             sensor_msgs.msg.JointState,
             latch = False, queue_size = 10
@@ -797,7 +797,7 @@ class utils:
         # convert to ROS msg and publish
         msg = sensor_msgs.msg.JointState()
         msg.position = setpoint.tolist()
-        handle = crtk.wait_move_handle(self.__operating_state_instance, self.__ros_12)
+        handle = crtk.wait_move_handle(self.__operating_state_instance, self.__ral)
         self.__move_jr_publisher.publish(msg)
         return handle
 
@@ -807,7 +807,7 @@ class utils:
         if hasattr(self.__class_instance, 'move_jr'):
             raise RuntimeWarning('move_jr already exists')
         # create the subscriber
-        self.__move_jr_publisher = self.__ros_12.publisher(
+        self.__move_jr_publisher = self.__ral.publisher(
             'move_jr',
             sensor_msgs.msg.JointState,
             latch = False, queue_size = 10
@@ -821,7 +821,7 @@ class utils:
         # convert to ROS msg and publish
         msg = geometry_msgs.msg.PoseStamped()
         msg.pose = msg_conv.FrameToPoseMsg(goal)
-        handle = crtk.wait_move_handle(self.__operating_state_instance, self.__ros_12)
+        handle = crtk.wait_move_handle(self.__operating_state_instance, self.__ral)
         self.__move_cp_publisher.publish(msg)
         return handle
 
@@ -831,7 +831,7 @@ class utils:
         if hasattr(self.__class_instance, 'move_cp'):
             raise RuntimeWarning('move_cp already exists')
         # create the subscriber
-        self.__move_cp_publisher = self.__ros_12.publisher(
+        self.__move_cp_publisher = self.__ral.publisher(
             'move_cp',
             geometry_msgs.msg.PoseStamped,
             latch = False, queue_size = 10
@@ -857,7 +857,7 @@ class utils:
         if hasattr(self.__class_instance, 'forward_kinematics'):
             raise RuntimeWarning('forward_kinematics already exists')
         # create the service
-        self.__forward_kinematics_service = self.__ros_12.service_client(
+        self.__forward_kinematics_service = self.__ral.service_client(
             '/forward_kinematics', crtk_msgs.srv.QueryForwardKinematics)
         # add attributes to class instance
         self.__class_instance.forward_kinematics = self.__forward_kinematics
@@ -880,7 +880,7 @@ class utils:
         if hasattr(self.__class_instance, 'inverse_kinematics'):
             raise RuntimeWarning('inverse_kinematics already exists')
         # create the service
-        self.__inverse_kinematics_service = self.__ros_12.service_client(
+        self.__inverse_kinematics_service = self.__ral.service_client(
             '/inverse_kinematics',
             crtk_msgs.srv.QueryInverseKinematics)
         # add attributes to class instance
