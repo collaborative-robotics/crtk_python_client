@@ -745,12 +745,7 @@ class utils:
     def __servo_cv(self, setpoint):
         # convert to ROS msg and publish
         msg = geometry_msgs.msg.TwistStamped()
-        msg.Twist.linear.x = setpoint[0]
-        msg.Twist.linear.y = setpoint[1]
-        msg.Twist.linear.z = setpoint[2]
-        msg.Twist.angular.x = setpoint[3]
-        msg.Twist.angular.y = setpoint[4]
-        msg.Twist.angular.z = setpoint[5]
+        msg.Twist = msg_conv.ArrayToTwistMsg(setpoint)
         self.__servo_cv_publisher.publish(msg)
 
     def add_servo_cv(self):
