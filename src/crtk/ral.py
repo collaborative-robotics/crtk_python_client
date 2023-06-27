@@ -74,12 +74,15 @@ class ral:
         stamp = self.timestamp(t)
         return self.to_secs(stamp)
     
-    def duration(self, d):
+    def create_duration(self, d):
         return rospy.Duration(d)
+
+    def create_rate(self, rate_hz):
+        return rospy.Rate(rate_hz)
 
     def set_rate(self, rate_in_Hz):
         self.__rate_in_Hz = rate_in_Hz
-        self.__ros_rate = rospy.Rate(rate_in_Hz)
+        self.__ros_rate = self.create_rate(rate_in_Hz)
 
     def sleep(self):
         if self.__rate_in_Hz == 0.0:
@@ -187,6 +190,6 @@ class ral:
             return
 
         start_time = self.now()
-        timeout_duration = self.duration(timeout_seconds)
+        timeout_duration = self.create_duration(timeout_seconds)
 
         self.__check_connections(start_time, timeout_duration, check_children)

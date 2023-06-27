@@ -22,7 +22,7 @@ class wait_move_handle:
 
     def is_busy(self, timeout = 30.0):
         # if we keep asking past timeout, throw an exception
-        if (self.__ral.now() - self.__start_time) > self.__ral.duration(timeout):
+        if (self.__ral.now() - self.__start_time) > self.__ral.create_duration(timeout):
             raise RuntimeWarning('is_busy past timeout')
         # else, check if we have a new state after start time and return is_busy
         if self.__class_instance:

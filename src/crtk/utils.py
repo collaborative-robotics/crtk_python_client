@@ -56,7 +56,7 @@ class utils:
         # check if user accepts cached data
         if age != 0.0:
             data_age = self.__ral.now() - self.__ral.timestamp(data)
-            if data_age <= self.__ral.duration(age):
+            if data_age <= self.__ral.create_duration(age):
                 return True
         if wait != 0.0:
             if event.wait(wait):

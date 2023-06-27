@@ -37,7 +37,7 @@ class crtk_move_cp_example:
         goal = PyKDL.Frame()
         goal.p = self.setpoint_cp().p
         goal.M = self.setpoint_cp().M
-        amplitude = 0.01 # 2 centimeters
+        amplitude = 0.02 # 2 centimeters
 
         # first move
         goal.p[0] = start_cp.p[0] + amplitude
