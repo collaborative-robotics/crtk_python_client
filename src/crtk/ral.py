@@ -175,13 +175,16 @@ class ral:
         )
         raise TimeoutError(err_msg)
 
-    def check_connections(self, timeout_seconds, check_children = True):
+    def check_connections(self, timeout_seconds = 5.0, check_children = True):
         """Check that all publishers are connected to at least one subscriber,
         and that all subscribers are connected to at least on publisher.
 
         If timeout_seconds is zero, no checks will be done.
         If check_children is True, all children will be checked as well.
         """
+
+        if timeout_seconds == 0.0:
+            return
 
         start_time = self.now()
         timeout_duration = self.duration(timeout_seconds)
