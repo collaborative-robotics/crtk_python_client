@@ -16,34 +16,27 @@
 # > rosrun crtk_python_client crtk_haptic_example <device-namespace>
 
 import crtk
-import math
-import sys
-import rospy
-import numpy
 import PyKDL
+import sys
+
 
 if sys.version_info.major < 3:
     input = raw_input
 
-# example of application using device.py
+
 class crtk_haptic_example:
-
-    # configuration
-    def configure(self, device_namespace):
-        # ROS initialization
-        if not rospy.get_node_uri():
-            rospy.init_node('crtk_haptic_example', anonymous = True, log_level = rospy.WARN)
-
-        print(rospy.get_caller_id() + ' -> configuring crtk_device_test for: ' + device_namespace)
-        # populate this class with all the ROS topics we need
-        self.crtk_utils = crtk.utils(self, device_namespace)
+    def __init__(self, ral):
+         # populate this class with all the ROS topics we need
+        self.crtk_utils = crtk.utils(self, ral)
         self.crtk_utils.add_operating_state()
         self.crtk_utils.add_measured_cp()
         self.crtk_utils.add_measured_cv()
         self.crtk_utils.add_servo_cf()
+
         # for all examples
         self.duration = 10 # 10 seconds
-        self.rate = 500    # aiming for 500 Hz
+        self.rate = 500 # aiming for 500 Hz
+        self.sleep_rate = ral.rate(500)
         self.samples = self.duration * self.rate
 
     # main loop
@@ -90,7 +83,8 @@ class crtk_haptic_example:
                 elif  (distance < -dim):
                     wrench[d] = p_gain * (distance + dim)
             self.servo_cf(wrench)
-            rospy.sleep(1.0 / self.rate)
+            self.sleep_rate.sleep()
+
         wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.servo_cf(wrench)
 
@@ -103,19 +97,23 @@ class crtk_haptic_example:
             for d in range(3):
                 wrench[d] = d_gain * self.measured_cv()[d]
             self.servo_cf(wrench)
-            rospy.sleep(1.0 / self.rate)
+            self.servo_cf(wrench)
+            self.sleep_rate.sleep()
+
         wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.servo_cf(wrench)
 
-# use the class now, i.e. main program
-if __name__ == '__main__':
-    try:
-        if (len(sys.argv) != 2):
-            print(sys.argv[0], ' requires one argument, i.e. crtk device namespace')
-        else:
-            example = crtk_haptic_example()
-            example.configure(sys.argv[1])
-            example.run()
 
-    except rospy.ROSInterruptException:
-        pass
+def main():
+    if (len(sys.argv) != 2):
+        print(sys.argv[0], ' requires one argument, i.e. crtk device namespace')
+        return
+    
+    example_name = type(crtk_haptic_example).__name__
+    device_namespace = sys.argv[1]
+    ral = crtk.ral(example_name, device_namespace)
+    example = crtk_haptic_example(ral)
+    ral.spin_and_execute(example.run)
+
+if __name__ == '__main__':
+    main()

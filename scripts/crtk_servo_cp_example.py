@@ -10,37 +10,29 @@
 # > rosrun dvrk_robot dvrk_console_json -j <console-file>
 
 # To communicate with the arm using ROS topics, see the python based example dvrk_arm_test.py:
-# > rosrun crtk_python_client crtk_arm_test.py <arm-name>
+# > rosrun crtk_python_client crtk_servo_cp_example.py <arm-name>
 
 import crtk
 import math
-import sys
-import rospy
-import numpy
 import PyKDL
+import sys
 
 
-# example of application using device.py
 class crtk_servo_cp_example:
-
-    # configuration
-    def configure(self, device_namespace):
-        # ROS initialization
-        if not rospy.get_node_uri():
-            rospy.init_node('crtk_servo_cp_example', anonymous = True, log_level = rospy.WARN)
-
-        print(rospy.get_caller_id() + ' -> configuring crtk_device_test for: ' + device_namespace)
+    def __init__(self, ral):
         # populate this class with all the ROS topics we need
-        self.crtk_utils = crtk.utils(self, device_namespace)
+        self.crtk_utils = crtk.utils(self, ral)
         self.crtk_utils.add_operating_state()
         self.crtk_utils.add_setpoint_cp()
         self.crtk_utils.add_servo_cp()
+
         # for all examples
         self.duration = 10 # 10 seconds
         self.rate = 200    # aiming for 200 Hz
+        self.sleep_rate = ral.rate(self.rate)
         self.samples = self.duration * self.rate
 
-    def run_servo_cp(self):
+    def run(self):
         if not self.enable(60):
             print("Unable to enable the device, make sure it is connected.")
             return
@@ -53,21 +45,26 @@ class crtk_servo_cp_example:
         goal.p = self.setpoint_cp().p
         goal.M = self.setpoint_cp().M
         amplitude = 0.01 # 2 centimeters
+
+        self.sleep_rate.sleep()
         for i in range(self.samples):
             goal.p[0] =  start.p[0] + amplitude * (1.0 - math.cos(i * math.radians(360.0) / self.samples))
             goal.p[1] =  start.p[1] + amplitude * (1.0 - math.cos(i * math.radians(360.0) / self.samples))
             self.servo_cp(goal)
-            rospy.sleep(1.0 / self.rate)
+            self.sleep_rate.sleep()
 
-# use the class now, i.e. main program
+
+def main():
+    if (len(sys.argv) != 2):
+        print(sys.argv[0], ' requires one argument, i.e. crtk device namespace')
+        return
+    
+    example_name = type(crtk_servo_cp_example).__name__
+    device_namespace = sys.argv[1]
+    ral = crtk.ral(example_name, device_namespace)
+    example = crtk_servo_cp_example(ral)
+    ral.spin_and_execute(example.run)
+
+
 if __name__ == '__main__':
-    try:
-        if (len(sys.argv) != 2):
-            print(sys.argv[0], ' requires one argument, i.e. crtk device namespace')
-        else:
-            example = crtk_servo_cp_example()
-            example.configure(sys.argv[1])
-            example.run_servo_cp()
-
-    except rospy.ROSInterruptException:
-        pass
+    main()
