@@ -26,7 +26,9 @@ if sys.version_info.major < 3:
 
 class crtk_haptic_example:
     def __init__(self, ral):
-         # populate this class with all the ROS topics we need
+        self.ral = ral
+
+        # populate this class with all the ROS topics we need
         self.crtk_utils = crtk.utils(self, ral)
         self.crtk_utils.add_operating_state()
         self.crtk_utils.add_measured_cp()
@@ -36,18 +38,23 @@ class crtk_haptic_example:
         # for all examples
         self.duration = 10 # 10 seconds
         self.rate = 500 # aiming for 500 Hz
-        self.sleep_rate = ral.rate(500)
         self.samples = self.duration * self.rate
 
     # main loop
     def run(self):
         if not self.enable(60):
-            print("Unable to enable the device, make sure it is connected.")
+            print('Unable to enable the device, make sure it is connected.')
             return
 
         self.running = True
         while (self.running):
-            print ('\n- q: quit\n- p: print position, velocity\n- b: virtual box around current position with linear forces (10s)\n- v: viscosity (10s)')
+            msg = ('\n'
+                   '- q: quit\n'
+                   '- p: print position, velocity\n'
+                   '- b: virtual box around current position with linear forces ({}s)\n'
+                   '- v: viscosity ({}s)\n'
+            )
+            print(msg.format(self.duration, self.duration))
             answer = input('Enter your choice and [enter] to continue\n')
             if answer == 'q':
                 self.running = False
@@ -73,6 +80,8 @@ class crtk_haptic_example:
         p_gain = -500.0
         center = PyKDL.Frame()
         center.p = self.measured_cp().p
+
+        sleep_rate = self.ral.create_rate(self.rate)
         for i in range(self.samples):
             wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             # foreach d dimension x, y, z
@@ -83,7 +92,7 @@ class crtk_haptic_example:
                 elif  (distance < -dim):
                     wrench[d] = p_gain * (distance + dim)
             self.servo_cf(wrench)
-            self.sleep_rate.sleep()
+            sleep_rate.sleep()
 
         wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.servo_cf(wrench)
@@ -91,6 +100,7 @@ class crtk_haptic_example:
     # viscosity
     def run_viscosity(self):
         d_gain = -10.0
+        sleep_rate = self.ral.create_rate(self.rate)
         for i in range(self.samples):
             wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             # foreach d dimension x, y, z
@@ -98,7 +108,7 @@ class crtk_haptic_example:
                 wrench[d] = d_gain * self.measured_cv()[d]
             self.servo_cf(wrench)
             self.servo_cf(wrench)
-            self.sleep_rate.sleep()
+            sleep_rate.sleep()
 
         wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.servo_cf(wrench)

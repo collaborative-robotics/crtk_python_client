@@ -135,7 +135,7 @@ class ral:
         return pubsub.name
 
     def __check_connections(self, start_time, timeout_duration, check_children):
-        check_rate = rospy.Rate(100)
+        check_rate = self.create_rate(100)
         connected = lambda pubsub: pubsub.get_num_connections() > 0
 
         print(f"Checking connections in {self.namespace()}")

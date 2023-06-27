@@ -38,7 +38,7 @@ class crtk_servo_cv_example:
             return
 
         # create a new goal with constant speed
-        sleep_rate = self.ral.rate(self.rate)
+        sleep_rate = self.ral.create_rate(self.rate)
         for i in range(self.samples):
             vel = np.array([0.05, 0.0, 0.0, 0.0, 0.0, 0.0]) # move 5 cm/sec along x direction
             self.servo_cv(vel)

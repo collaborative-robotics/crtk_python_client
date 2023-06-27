@@ -69,7 +69,7 @@ class crtk_teleop_example:
         # for all examples
         self.duration = 10 # 10 seconds
         self.rate = 500    # aiming for 200 Hz
-        self.sleep_rate = ral.rate(self.rate)
+        self.sleep_rate = ral.create_rate(self.rate)
         self.samples = self.duration * self.rate
 
     # main loop
