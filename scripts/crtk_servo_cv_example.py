@@ -33,8 +33,12 @@ class crtk_servo_cv_example:
         self.samples = self.duration * self.rate
 
     def run(self):
-        if not self.enable(60):
+        if not self.enable(30):
             print("Unable to enable the device, make sure it is connected.")
+            return
+
+        if not self.home(30):
+            print('Unable to home the device, make sure it is connected.')
             return
 
         # create a new goal with constant speed

@@ -38,6 +38,10 @@ class crtk_servo_jp_example:
             print("Unable to enable the device, make sure it is connected.")
             return
 
+        if not self.home(30):
+            print('Unable to home the device, make sure it is connected.')
+            return
+
         # create a new goal starting with current position
         start_jp = numpy.copy(self.setpoint_jp())
         goal = numpy.copy(self.setpoint_jp())

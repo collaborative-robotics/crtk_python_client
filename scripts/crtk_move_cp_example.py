@@ -26,8 +26,12 @@ class crtk_move_cp_example:
         self.crtk_utils.add_move_cp()
 
     def run(self):
-        if not self.enable(60):
+        if not self.enable(30):
             print("Unable to enable the device, make sure it is connected.")
+            return
+
+        if not self.home(30):
+            print('Unable to home the device, make sure it is connected.')
             return
 
         # create a new goal starting with current position
@@ -61,7 +65,7 @@ def main():
     if (len(sys.argv) != 2):
         print(sys.argv[0], ' requires one argument, i.e. crtk device namespace')
         return
-    
+
     example_name = type(crtk_move_cp_example).__name__
     device_namespace = sys.argv[1]
     ral = crtk.ral(example_name, device_namespace)
