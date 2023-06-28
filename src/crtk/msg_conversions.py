@@ -125,7 +125,7 @@ def ArrayToWrenchMsg(a):
     :param a: input wrench
     :type a: list of float
 
-    Return a ROS Twist message for the wrench w.
+    Return a ROS Wrench message for the wrench w.
     There must be a standard package to perform this conversion, if you find it, please remove this code.
     """
     w = geometry_msgs.msg.Wrench()

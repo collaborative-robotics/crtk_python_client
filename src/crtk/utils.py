@@ -55,7 +55,7 @@ class utils:
             wait = self.__expected_interval
         # check if user accepts cached data
         if age != 0.0:
-            data_age = self.__ral.now() - self.__ral.timestamp(data)
+            data_age = self.__ral.now() - self.__ral.get_timestamp(data)
             if data_age <= self.__ral.create_duration(age):
                 return True
         if wait != 0.0:
@@ -75,7 +75,7 @@ class utils:
             return self.__operating_state_data.state
         else:
             return [self.__operating_state_data.state,
-                    self.__ral.timestamp_secs(self.__operating_state_data)]
+                    self.__ral.to_sec(self.__operating_state_data)]
 
     def __wait_for_operating_state(self, expected_state, timeout):
         if timeout < 0.0:
@@ -91,7 +91,7 @@ class utils:
                 return True
             else:
                 # wait a bit more
-                elapsed_time = self.__ral.to_secs(self.__ral.now() - start_time)
+                elapsed_time = self.__ral.to_sec(self.__ral.now() - start_time)
                 self.__operating_state_event.clear()
                 return self.__wait_for_operating_state(expected_state = expected_state,
                                                        timeout = timeout - elapsed_time)
@@ -134,7 +134,7 @@ class utils:
             return self.__operating_state_data.is_homed
         else:
             return [self.__operating_state_data.is_homed,
-                    self.__ral.timestamp_secs(self.__operating_state_data)]
+                    self.__ral.to_sec(self.__operating_state_data)]
 
     def __wait_for_homed(self, timeout, expected_homed):
         if timeout < 0.0:
@@ -151,7 +151,7 @@ class utils:
                 return True
             else:
                 # wait a bit more
-                elapsed_time = self.__ral.to_secs(self.__ral.now() - start_time)
+                elapsed_time = self.__ral.to_sec(self.__ral.now() - start_time)
                 self.__operating_state_event.clear()
                 return self.__wait_for_homed(expected_homed = expected_homed,
                                              timeout = timeout - elapsed_time)
@@ -181,13 +181,13 @@ class utils:
         if start_time is None:
             start_time = self.__ral.now()
         result = True
-        if self.__ral.timestamp(self.__operating_state_data) > start_time:
+        if self.__ral.get_timestamp(self.__operating_state_data) > start_time:
             result = self.__operating_state_data.is_busy
         if not extra:
             return result
         else:
             return [result,
-                    self.__ral.timestamp_secs(self.__operating_state_data)]
+                    self.__ral.to_sec(self.__operating_state_data)]
 
     def __wait_for_busy(self,
                         is_busy = False,
@@ -201,7 +201,7 @@ class utils:
             start_time = self.__ral.now()
         else:
             # user provided start_time, check if an event arrived after start_time
-            last_event_time = self.__ral.timestamp(self.__operating_state_data)
+            last_event_time = self.__ral.get_timestamp(self.__operating_state_data)
             if (last_event_time > start_time and self.__operating_state_data.is_busy == is_busy):
                 return True
 
@@ -218,7 +218,7 @@ class utils:
             return True
         else:
             # wait a bit more
-            elapsed_time = self.__ral.to_secs(self.__ral.now() - _start_time)
+            elapsed_time = self.__ral.to_sec(self.__ral.now() - _start_time)
             self.__operating_state_event.clear()
             return self.__wait_for_busy(is_busy = is_busy,
                                         start_time = start_time,
@@ -277,8 +277,8 @@ class utils:
             return [numpy.array(self.__setpoint_js_data.position),
                     numpy.array(self.__setpoint_js_data.velocity),
                     numpy.array(self.__setpoint_js_data.effort),
-                    self.__ral.timestamp_secs(self.__setpoint_js_data)]
-        raise RuntimeWarning('unable to get setpoint_js ({})'.format(self.__ral.get_topic(self.__setpoint_js_subscriber)))
+                    self.__ral.to_sec(self.__setpoint_js_data)]
+        raise RuntimeWarning('unable to get setpoint_js ({})'.format(self.__ral.get_topic_name(self.__setpoint_js_subscriber)))
 
     def __setpoint_jp(self, age = None, wait = None, extra = None):
         """Joint Position Setpoint.  Default age and wait are set to
@@ -295,8 +295,8 @@ class utils:
                 return numpy.array(self.__setpoint_js_data.position)
             else:
                 return [numpy.array(self.__setpoint_js_data.position),
-                        self.__ral.timestamp_secs(self.__setpoint_js_data)]
-        raise RuntimeWarning('unable to get setpoint_jp ({})'.format(self.__ral.get_topic(self.__setpoint_js_subscriber)))
+                        self.__ral.to_sec(self.__setpoint_js_data)]
+        raise RuntimeWarning('unable to get setpoint_jp ({})'.format(self.__ral.get_topic_name(self.__setpoint_js_subscriber)))
 
     def __setpoint_jv(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__setpoint_js_data,
@@ -306,8 +306,8 @@ class utils:
                 return numpy.array(self.__setpoint_js_data.velocity)
             else:
                 return [numpy.array(self.__setpoint_js_data.velocity),
-                        self.__ral.timestamp_secs(self.__setpoint_js_data)]
-        raise RuntimeWarning('unable to get setpoint_jv ({})'.format(self.__ral.get_topic(self.__setpoint_js_subscriber)))
+                        self.__ral.to_sec(self.__setpoint_js_data)]
+        raise RuntimeWarning('unable to get setpoint_jv ({})'.format(self.__ral.get_topic_name(self.__setpoint_js_subscriber)))
 
     def __setpoint_jf(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__setpoint_js_data,
@@ -317,8 +317,8 @@ class utils:
                 return numpy.array(self.__setpoint_js_data.effort)
             else:
                 return [numpy.array(self.__setpoint_js_data.effort),
-                        self.__ral.timestamp_secs(self.__setpoint_js_data)]
-        raise RuntimeWarning('unable to get setpoint_jf ({})'.format(self.__ral.get_topic(self.__setpoint_js_subscriber)))
+                        self.__ral.to_sec(self.__setpoint_js_data)]
+        raise RuntimeWarning('unable to get setpoint_jf ({})'.format(self.__ral.get_topic_name(self.__setpoint_js_subscriber)))
 
     def add_setpoint_js(self):
         # throw a warning if this has alread been added to the class,
@@ -357,8 +357,8 @@ class utils:
                 return msg_conv.FrameFromPoseMsg(self.__setpoint_cp_data.pose)
             else:
                 return [msg_conv.FrameFromPoseMsg(self.__setpoint_cp_data.pose),
-                        self.__ral.timestamp_secs(self.__setpoint_cp_data)]
-        raise RuntimeWarning('unable to get setpoint_cp ({})'.format(self.__ral.get_topic(self.__setpoint_cp_subscriber)))
+                        self.__ral.to_sec(self.__setpoint_cp_data)]
+        raise RuntimeWarning('unable to get setpoint_cp ({})'.format(self.__ral.get_topic_name(self.__setpoint_cp_subscriber)))
 
     def add_setpoint_cp(self):
         # throw a warning if this has alread been added to the class,
@@ -392,8 +392,8 @@ class utils:
             return [numpy.array(self.__measured_js_data.position),
                     numpy.array(self.__measured_js_data.velocity),
                     numpy.array(self.__measured_js_data.effort),
-                    self.__ral.timestamp_secs(self.__measured_js_data)]
-        raise RuntimeWarning('unable to get measured_js ({})'.format(self.__ral.get_topic(self.__measured_js_subscriber)))
+                    self.__ral.to_sec(self.__measured_js_data)]
+        raise RuntimeWarning('unable to get measured_js ({})'.format(self.__ral.get_topic_name(self.__measured_js_subscriber)))
 
     def __measured_jp(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__measured_js_data,
@@ -403,8 +403,8 @@ class utils:
                 return numpy.array(self.__measured_js_data.position)
             else:
                 return [numpy.array(self.__measured_js_data.position),
-                        self.__ral.timestamp_secs(self.__measured_js_data)]
-        raise RuntimeWarning('unable to get measured_jp ({})'.format(self.__ral.get_topic(self.__measured_js_subscriber)))
+                        self.__ral.to_sec(self.__measured_js_data)]
+        raise RuntimeWarning('unable to get measured_jp ({})'.format(self.__ral.get_topic_name(self.__measured_js_subscriber)))
 
     def __measured_jv(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__measured_js_data,
@@ -414,8 +414,8 @@ class utils:
                 return numpy.array(self.__measured_js_data.velocity)
             else:
                 return [numpy.array(self.__measured_js_data.velocity),
-                        self.__ral.timestamp_secs(self.__measured_js_data)]
-        raise RuntimeWarning('unable to get measured_jv ({})'.format(self.__ral.get_topic(self.__measured_js_subscriber)))
+                        self.__ral.to_sec(self.__measured_js_data)]
+        raise RuntimeWarning('unable to get measured_jv ({})'.format(self.__ral.get_topic_name(self.__measured_js_subscriber)))
 
     def __measured_jf(self, age = None, wait = None, extra = None):
         if self.__wait_for_valid_data(self.__measured_js_data,
@@ -425,8 +425,8 @@ class utils:
                 return numpy.array(self.__measured_js_data.effort)
             else:
                 return [numpy.array(self.__measured_js_data.effort),
-                        self.__ral.timestamp_secs(self.__measured_js_data)]
-        raise RuntimeWarning('unable to get measured_jf ({})'.format(self.__ral.get_topic(self.__measured_js_subscriber)))
+                        self.__ral.to_sec(self.__measured_js_data)]
+        raise RuntimeWarning('unable to get measured_jf ({})'.format(self.__ral.get_topic_name(self.__measured_js_subscriber)))
 
     def add_measured_js(self):
         # throw a warning if this has alread been added to the class,
@@ -462,8 +462,8 @@ class utils:
                 return msg_conv.FrameFromPoseMsg(self.__measured_cp_data.pose)
             else:
                 return [msg_conv.FrameFromPoseMsg(self.__measured_cp_data.pose),
-                        self.__ral.timestamp_secs(self.__measured_cp_data)]
-        raise RuntimeWarning('unable to get measured_cp ({})'.format(self.__ral.get_topic(self.__measured_cp_subscriber)))
+                        self.__ral.to_sec(self.__measured_cp_data)]
+        raise RuntimeWarning('unable to get measured_cp ({})'.format(self.__ral.get_topic_name(self.__measured_cp_subscriber)))
 
     def add_measured_cp(self):
         # throw a warning if this has alread been added to the class,
@@ -497,8 +497,8 @@ class utils:
                 return msg_conv.ArrayFromTwistMsg(self.__measured_cv_data.twist)
             else:
                 return [msg_conv.ArrayFromTwistMsg(self.__measured_cv_data.twist),
-                        self.__ral.timestamp_secs(self.__measured_cv_data)]
-        raise RuntimeWarning('unable to get measured_cv ({})'.format(self.__ral.get_topic(self.__measured_cv_subscriber)))
+                        self.__ral.to_sec(self.__measured_cv_data)]
+        raise RuntimeWarning('unable to get measured_cv ({})'.format(self.__ral.get_topic_name(self.__measured_cv_subscriber)))
 
     def add_measured_cv(self):
         # throw a warning if this has alread been added to the class,
@@ -532,8 +532,8 @@ class utils:
                 return msg_conv.ArrayFromWrenchMsg(self.__measured_cf_data.wrench)
             else:
                 return [msg_conv.ArrayFromWrenchMsg(self.__measured_cf_data.wrench),
-                        self.__ral.timestamp_secs(self.__measured_cf_data)]
-        raise RuntimeWarning('unable to get measured_cf ({})'.format(self.__ral.get_topic(self.__measured_cf_subscriber)))
+                        self.__ral.to_sec(self.__measured_cf_data)]
+        raise RuntimeWarning('unable to get measured_cf ({})'.format(self.__ral.get_topic_name(self.__measured_cf_subscriber)))
 
     def add_measured_cf(self):
         # throw a warning if this has alread been added to the class,
@@ -718,12 +718,7 @@ class utils:
     def __servo_cf(self, setpoint):
         # convert to ROS msg and publish
         msg = geometry_msgs.msg.WrenchStamped()
-        msg.wrench.force.x = setpoint[0]
-        msg.wrench.force.y = setpoint[1]
-        msg.wrench.force.z = setpoint[2]
-        msg.wrench.torque.x = setpoint[3]
-        msg.wrench.torque.y = setpoint[4]
-        msg.wrench.torque.z = setpoint[5]
+        msg.wrench = msg_conv.ArrayToWrenchMsg(setpoint)
         self.__servo_cf_publisher.publish(msg)
 
     def add_servo_cf(self):

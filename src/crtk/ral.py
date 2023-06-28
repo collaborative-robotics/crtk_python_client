@@ -9,11 +9,11 @@ import rospy
 
 class ral:
     """RAL: ROS abstraction layer
-    
+
     Provides many common parts of rospy/rclpy via a common API, to allow CRTK code to
     be written at a higher level, and to work for both ROS 1 and ROS 2.
     """
-    
+
     @staticmethod
     def ros_version():
         return 1
@@ -24,87 +24,70 @@ class ral:
         return rospy.myargv(argv)
 
     def __init__(self, node_name, namespace = '', node = None):
-        self.__node_name = node_name
-        self.__namespace = namespace.strip("/")
-        self.__rate_in_Hz = 0.0
+        self._node_name = node_name
+        self._namespace = namespace.strip('/')
 
-        self.__children = {}
-        self.__publishers = []
-        self.__subscribers = []
-        self.__services = []
+        self._children = {}
+        self._publishers = []
+        self._subscribers = []
+        self._services = []
 
         if node is not None:
-            self.__node = node
+            self._node = node
         else:
             # ros init node so we can use default ros arguments (e.g. __ns:= for namespace)
             rospy.init_node(self.node_name(), anonymous = True)
 
     def __del__(self):
-        for pub in self.__publishers:
+        for pub in self._publishers:
             pub.unregister()
-        
-        for sub in self.__subscribers:
+
+        for sub in self._subscribers:
             sub.unregister()
 
-    def create_child(self, child_namespace):
-        if child_namespace in self.__children:
-            raise RuntimeError('ral object already has child "{child_namespace}"!')
+    def node_name(self):
+        return self._node_name
 
-        child_namespace = child_namespace.strip('/')
-        child_full_namespace = f'{self.namespace()}/{child_namespace}'
-        child = ral(self.node_name(), child_full_namespace, self)
-        self.__children[child_namespace] = child
+    def namespace(self):
+        return self._namespace
+
+    def create_child(self, child_namespace):
+        if child_namespace in self._children:
+            err_msg = 'ral object already has child "{}"!'.format(child_namespace)
+            raise RuntimeError(err_msg)
+
+        full_child_namespace = self._add_namespace_to(child_namespace)
+        child = ral(self.node_name(), full_child_namespace, self)
+        self._children[child_namespace] = child
         return child
-    
+
     def now(self):
         return rospy.Time.now()
-    
-    def timestamp(self, t):
+
+    def get_timestamp(self, t):
         if hasattr(t, 'header'):
             t = t.header
         if hasattr(t, 'stamp'):
             t = t.stamp
 
         return t
-    
-    def to_secs(self, t):
+
+    def to_sec(self, t):
+        t = self.get_timestamp(t)
         return t.to_sec()
-    
-    def timestamp_secs(self, t):
-        stamp = self.timestamp(t)
-        return self.to_secs(stamp)
-    
+
     def create_duration(self, d):
         return rospy.Duration(d)
 
     def create_rate(self, rate_hz):
         return rospy.Rate(rate_hz)
 
-    def set_rate(self, rate_in_Hz):
-        self.__rate_in_Hz = rate_in_Hz
-        self.__ros_rate = self.create_rate(rate_in_Hz)
-
-    def sleep(self):
-        if self.__rate_in_Hz == 0.0:
-            raise RuntimeError('set_rate must be called before sleep')
-        self.__ros_rate.sleep()
-
-    def node_name(self):
-        return self.__node_name
-
-    def namespace(self):
-        return self.__namespace
-    
-    def add_namespace(self, name):
-        name = name.strip('/')
-        return f'{self.namespace()}/{name}'
-    
     def spin(self):
         pass # Not applicable in ROS 1
 
     def shutdown(self):
         pass # Not applicable in ROS 1
-    
+
     def spin_and_execute(self, function, *arguments):
         function(*arguments)
 
@@ -114,35 +97,38 @@ class ral:
     def is_shutdown(self):
         return rospy.is_shutdown()
 
+    def _add_namespace_to(self, name):
+        name = name.strip('/')
+        qualified_name = '{}/{}'.format(self.namespace(), name)
+        return qualified_name
+
     def publisher(self, topic, msg_type, queue_size = 10, latch = False, *args, **kwargs):
-        pub = rospy.Publisher(self.add_namespace(topic), msg_type,
+        pub = rospy.Publisher(self._add_namespace_to(topic), msg_type,
                               latch = latch, queue_size = queue_size, *args, **kwargs)
-        self.__publishers.append(pub)
+        self._publishers.append(pub)
         return pub
 
     def subscriber(self, topic, msg_type, callback, queue_size = 10, *args, **kwargs):
-        sub = rospy.Subscriber(self.add_namespace(topic), msg_type, callback=callback,
+        sub = rospy.Subscriber(self._add_namespace_to(topic), msg_type, callback=callback,
                                queue_size = queue_size, *args, **kwargs)
-        self.__subscribers.append(sub)
+        self._subscribers.append(sub)
         return sub
 
     def service_client(self, name, srv_type):
-        client = rospy.ServiceProxy(self.add_namespace(name), srv_type)
-        self.__services.append(client)
+        client = rospy.ServiceProxy(self._add_namespace_to(name), srv_type)
+        self._services.append(client)
         return client
 
-    def get_topic(self, pubsub):
+    def get_topic_name(self, pubsub):
         return pubsub.name
 
-    def __check_connections(self, start_time, timeout_duration, check_children):
+    def _check_connections(self, start_time, timeout_duration, check_children):
         check_rate = self.create_rate(100)
         connected = lambda pubsub: pubsub.get_num_connections() > 0
 
-        print(f"Checking connections in {self.namespace()}")
-
         # wait at most timeout_seconds for all connections to establish
         while (self.now() - start_time) < timeout_duration:
-            pubsubs = self.__publishers + self.__subscribers
+            pubsubs = self._publishers + self._subscribers
             unconnected = [ps for ps in pubsubs if not connected(ps)]
             if len(unconnected) == 0:
                 break
@@ -152,31 +138,33 @@ class ral:
         if check_children:
             # recursively check connections in all child ral objects,
             # using same start time so the timeout period doesn't restart
-            for _, child in self.__children.items():
-                child.__check_connections(start_time, timeout_duration, check_children)
+            for _, child in self._children.items():
+                child._check_connections(start_time, timeout_duration, check_children)
 
         # last check of connection status, raise error if any remain unconnected
-        unconnected_pubs = [p for p in self.__publishers if not connected(p)]
-        unconnected_subs = [s for s in self.__subscribers if not connected(s)]
+        unconnected_pubs = [p for p in self._publishers if not connected(p)]
+        unconnected_subs = [s for s in self._subscribers if not connected(s)]
         if len(unconnected_pubs) == 0 and len(unconnected_subs) == 0:
             return
-        
-        connected_pub_count = len(self.__publishers) - len(unconnected_pubs)
-        connected_sub_count = len(self.__subscribers) - len(unconnected_subs)
-        unconnected_pub_names = ', '.join([p.name for p in unconnected_pubs])
-        unconnected_sub_names = ', '.join([s.name for s in unconnected_subs])
+
+        connected_pub_count = len(self._publishers) - len(unconnected_pubs)
+        connected_sub_count = len(self._subscribers) - len(unconnected_subs)
+        unconnected_pub_names = ', '.join([self.get_topic_name(p) for p in unconnected_pubs])
+        unconnected_sub_names = ', '.join([self.get_topic_name(s) for s in unconnected_subs])
 
         err_msg = \
         (
-            f"Timed out waiting for publisher/subscriber connections to establish\n"
-            f"    Publishers:  {connected_pub_count} connected,"
-            f" {len(unconnected_pubs)} not connected\n"
-            f"                 not connected: [{unconnected_pub_names}]\n\n"
-            f"    Subscribers: {connected_sub_count} connected,"
-            f" {len(unconnected_subs)} not connected\n"
-            f"                 not connected: [{unconnected_sub_names}]\n\n"
+            'Timed out waiting for publisher/subscriber connections to establish\n'
+            '    Publishers:  {} connected,'
+            ' {} not connected\n'
+            '                 not connected: [{}]\n\n'
+            '    Subscribers: {} connected,'
+            ' {} not connected\n'
+            '                 not connected: [{}]\n\n'
         )
-        raise TimeoutError(err_msg)
+        err_msg = err_msg.format(connected_pub_count, len(unconnected_pubs), unconnected_pub_names,
+                                 connected_sub_count, len(unconnected_subs), unconnected_sub_names)
+        raise TimeoutError(err_msg.format(connected_pub_count))
 
     def check_connections(self, timeout_seconds = 5.0, check_children = True):
         """Check that all publishers are connected to at least one subscriber,
@@ -192,4 +180,4 @@ class ral:
         start_time = self.now()
         timeout_duration = self.create_duration(timeout_seconds)
 
-        self.__check_connections(start_time, timeout_duration, check_children)
+        self._check_connections(start_time, timeout_duration, check_children)
