@@ -34,6 +34,8 @@ class crtk_servo_jp_example:
         self.samples = self.duration * self.rate
 
     def run(self):
+        self.ral.check_connections()
+
         if not self.enable(60):
             print("Unable to enable the device, make sure it is connected.")
             return

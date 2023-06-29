@@ -19,13 +19,17 @@ import sys
 
 class crtk_move_cp_example:
     def __init__(self, ral):
-         # populate this class with all the ROS topics we need
+        self.ral = ral
+        
+        # populate this class with all the ROS topics we need
         self.crtk_utils = crtk.utils(self, ral)
         self.crtk_utils.add_operating_state()
         self.crtk_utils.add_setpoint_cp()
         self.crtk_utils.add_move_cp()
 
     def run(self):
+        self.ral.check_connections()
+            
         if not self.enable(30):
             print("Unable to enable the device, make sure it is connected.")
             return
