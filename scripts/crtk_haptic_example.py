@@ -32,13 +32,13 @@ class crtk_haptic_example:
             self.crtk_utils = crtk.utils(self, ral)
             self.crtk_utils.add_servo_cf()
 
-            self.cf_absolute_orientation_pub = self.ral.publisher(
+            self.set_cf_orientation_absolute_pub = self.ral.publisher(
                  'set_cf_orientation_absolute', std_msgs.msg.Bool)
 
-        def set_cf_absolute_orientation(self, absolute = True):
+        def set_cf_orientation_absolute(self, absolute = True):
             m = std_msgs.msg.Bool()
             m.data = absolute
-            self.cf_absolute_orientation_pub.publish(m)
+            self.set_cf_orientation_absolute_pub.publish(m)
 
     def __init__(self, ral):
         self.ral = ral
@@ -59,7 +59,7 @@ class crtk_haptic_example:
     # main loop
     def run(self):
         self.ral.check_connections()
-        
+
         if not self.enable(30):
             print('Unable to enable the device, make sure it is connected.')
             return
@@ -68,7 +68,7 @@ class crtk_haptic_example:
             print('Unable to home the device, make sure it is connected.')
             return
 
-        self.body.set_cf_absolute_orientation()
+        self.body.set_cf_orientation_absolute()
 
         self.running = True
         while (self.running):

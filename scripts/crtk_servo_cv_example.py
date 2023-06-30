@@ -50,8 +50,8 @@ class crtk_servo_cv_example:
             self.servo_cv(vel)
             sleep_rate.sleep()
 
-        # send the zero velcity to stop the robot
-        vel = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) 
+        # command zero velcity to stop the robot
+        vel = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         self.servo_cv(vel)
 
 
@@ -59,7 +59,7 @@ def main():
     if (len(sys.argv) != 2):
         print(sys.argv[0], ' requires one argument, i.e. crtk device namespace')
         return
-    
+
     example_name = type(crtk_servo_cv_example).__name__
     device_namespace = sys.argv[1]
     ral = crtk.ral(example_name, device_namespace)

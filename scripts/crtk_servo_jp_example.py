@@ -36,7 +36,7 @@ class crtk_servo_jp_example:
     def run(self):
         self.ral.check_connections()
 
-        if not self.enable(60):
+        if not self.enable(30):
             print("Unable to enable the device, make sure it is connected.")
             return
 
@@ -62,7 +62,7 @@ def main():
     if (len(sys.argv) != 2):
         print(sys.argv[0], ' requires one argument, i.e. crtk device namespace')
         return
-    
+
     example_name = type(crtk_servo_jp_example).__name__
     device_namespace = sys.argv[1]
     ral = crtk.ral(example_name, device_namespace)

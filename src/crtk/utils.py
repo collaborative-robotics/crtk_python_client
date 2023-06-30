@@ -740,7 +740,7 @@ class utils:
     def __servo_cv(self, setpoint):
         # convert to ROS msg and publish
         msg = geometry_msgs.msg.TwistStamped()
-        msg.Twist = msg_conv.ArrayToTwistMsg(setpoint)
+        msg.twist = msg_conv.ArrayToTwistMsg(setpoint)
         self.__servo_cv_publisher.publish(msg)
 
     def add_servo_cv(self):
@@ -851,6 +851,7 @@ class utils:
             '/forward_kinematics', crtk_msgs.srv.QueryForwardKinematics)
         # add attributes to class instance
         self.__class_instance.forward_kinematics = self.__forward_kinematics
+
 
     # internal methods for inverse_kinematics
     def __inverse_kinematics(self, jp, cp, extra = None):

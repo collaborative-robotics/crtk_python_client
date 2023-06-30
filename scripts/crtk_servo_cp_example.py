@@ -65,7 +65,7 @@ def main():
     if (len(sys.argv) != 2):
         print(sys.argv[0], ' requires one argument, i.e. crtk device namespace')
         return
-    
+
     example_name = type(crtk_servo_cp_example).__name__
     device_namespace = sys.argv[1]
     ral = crtk.ral(example_name, device_namespace)
