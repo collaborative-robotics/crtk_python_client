@@ -30,9 +30,9 @@ if sys.version_info.major < 3:
 # example of application using device.py
 class crtk_teleop_example:
 
-    class Puppeteer:
+    class Master:
         def __init__(self, ral):
-            # populate puppeteer with the ROS topics we need
+            # populate master with the ROS topics we need
             self.crtk = crtk.utils(self, ral)
             self.crtk.add_operating_state()
             self.crtk.add_measured_cp()
@@ -56,8 +56,8 @@ class crtk_teleop_example:
             self.crtk.add_setpoint_js()
             self.crtk.add_servo_jp()
 
-    def __init__(self, ral, puppeteer_namespace, puppet_namespace, gripper_namespace, jaw_namespace):
-        self.puppeteer = self.Puppeteer(ral.create_child(puppeteer_namespace))
+    def __init__(self, ral, master_namespace, puppet_namespace, gripper_namespace, jaw_namespace):
+        self.master = self.Master(ral.create_child(master_namespace))
         self.puppet = self.Puppet(ral.create_child(puppet_namespace))
         self.has_gripper = False
 
@@ -74,8 +74,8 @@ class crtk_teleop_example:
 
     # main loop
     def run(self):
-        if not self.puppeteer.enable(5.0):
-            print("Unable to enable the puppeteer device, make sure it is connected.")
+        if not self.master.enable(5.0):
+            print("Unable to enable the master device, make sure it is connected.")
             return
         if not self.puppet.enable(5.0):
             print("Unable to enable the puppet device, make sure it is connected.")
@@ -87,7 +87,7 @@ class crtk_teleop_example:
             answer = input('Enter your choice and [enter] to continue\n')
             if answer == 'q':
                 self.running = False
-                self.puppeteer.disable()
+                self.master.disable()
                 self.puppet.disable()
             elif answer == 'p':
                 self.run_print()
@@ -98,29 +98,29 @@ class crtk_teleop_example:
 
     # print positions
     def run_print(self):
-        print('puppeteer')
-        print(self.puppeteer.measured_cp().p)
+        print('master')
+        print(self.master.measured_cp().p)
         print('puppet')
         print(self.puppet.setpoint_cp().p)
 
     # position based teleop
     def run_teleop(self):
 
-        # registration between puppeteer and puppet.  Ideally we don't
+        # registration between master and puppet.  Ideally we don't
         # use this, the devices should be able to set a base frame
         registration_rotation = PyKDL.Frame()
-        # rotation from puppeteer Omni to puppet Falcon
+        # rotation from master Omni to puppet Falcon
         # registration_rotation.M.DoRotX(math.pi / 2.0)
         # registration_rotation.M.DoRotY(math.pi / 2.0)
 
-        # rotation from puppeteer Omni to puppet PSM
+        # rotation from master Omni to puppet PSM
         registration_rotation.M.DoRotZ(math.pi)
         registration_rotation.M.DoRotX(math.pi / 2.0)
 
         # scale (should be using ros::param)
         scale = 0.5
         # record where we started, only positions
-        start_puppeteer = PyKDL.Frame(registration_rotation.Inverse() * self.puppeteer.measured_cp())
+        start_master = PyKDL.Frame(registration_rotation.Inverse() * self.master.measured_cp())
         start_puppet = PyKDL.Frame(self.puppet.setpoint_cp())
 
         # create the target goal for the puppet, use current orientation
@@ -131,10 +131,10 @@ class crtk_teleop_example:
 
         # loop
         for i in range(self.samples):
-            # current puppeteer in puppet orientation
-            current_puppeteer = PyKDL.Frame(registration_rotation.Inverse() * self.puppeteer.measured_cp())
-            goal_puppet.p = start_puppet.p + scale * (current_puppeteer.p - start_puppeteer.p)
-            goal_puppet.M = current_puppeteer.M * start_puppeteer.M.Inverse() * start_puppet.M # this is not working yet!
+            # current master in puppet orientation
+            current_master = PyKDL.Frame(registration_rotation.Inverse() * self.master.measured_cp())
+            goal_puppet.p = start_puppet.p + scale * (current_master.p - start_master.p)
+            goal_puppet.M = current_master.M * start_master.M.Inverse() * start_puppet.M # this is not working yet!
             self.puppet.servo_cp(goal_puppet)
             # gripper
             if (self.has_gripper):
@@ -151,20 +151,20 @@ def main():
     ral = crtk.ral('crtk_teleop_example')
 
     if (len(sys.argv) == 3):
-        puppeteer_namespace = sys.argv[1]
+        master_namespace = sys.argv[1]
         puppet_namespace = sys.argv[2]
         gripper_namespace = ''
         jaw_namespace = ''
     elif (len(sys.argv) == 5):
-        puppeteer_namespace = sys.argv[1]
+        master_namespace = sys.argv[1]
         puppet_namespace = sys.argv[2]
         gripper_namespace = sys.argv[3]
         jaw_namespace = sys.argv[4]
     else:
-        print(sys.argv[0], ' requires two or four arguments, i.e. puppeteer and puppet namespaces [puppeteer gripper and pupper jaw namespaces]')
+        print(sys.argv[0], ' requires two or four arguments, i.e. master and puppet namespaces [master gripper and pupper jaw namespaces]')
         return
     
-    example = crtk_teleop_example(ral, puppeteer_namespace, puppet_namespace, gripper_namespace, jaw_namespace)
+    example = crtk_teleop_example(ral, master_namespace, puppet_namespace, gripper_namespace, jaw_namespace)
     ral.spin_and_execute(example)
 
 if __name__ == '__main__':
