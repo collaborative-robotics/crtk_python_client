@@ -67,9 +67,8 @@ class crtk_teleop_example:
             self.gripper = self.Gripper(ral.create_child(gripper_namespace))
             self.jaw = self.Jaw(ral.create_child(jaw_namespace))
 
-        # for all examples
-        self.duration = 10 # 10 seconds
-        self.rate = 500    # aiming for 200 Hz
+        self.duration = 10 # seconds
+        self.rate = 500    # aiming for 500 Hz
         self.sleep_rate = ral.create_rate(self.rate)
         self.samples = self.duration * self.rate
 
@@ -144,7 +143,8 @@ class crtk_teleop_example:
                 else:
                     if (abs(self.gripper.measured_jp()[0] - self.jaw.setpoint_jp()[0]) < math.radians(5.0)):
                         gripper_started = True
-            rospy.sleep(1.0 / self.rate)
+
+            self.sleep_rate.sleep()
 
 
 def main():
@@ -152,7 +152,7 @@ def main():
     parser.add_argument('master', type = str, help = 'ROS namespace for master CRTK device')
     parser.add_argument('puppet', type = str, help = 'ROS namespace for puppet CRTK device')
     parser.add_argument('-g', '--gripper', type = str, default = '', help = 'absolute ROS namespace for (optional) master gripper')
-    parser.add_argument('-h', '--jaw', type = str, default = '', help = 'absolute ROS namespace for (optional) puppet jaw')
+    parser.add_argument('-j', '--jaw', type = str, default = '', help = 'absolute ROS namespace for (optional) puppet jaw')
     app_args = crtk.ral.parse_argv(sys.argv[1:]) # process and remove ROS args
     args = parser.parse_args(app_args) 
 
@@ -160,7 +160,7 @@ def main():
     ral = crtk.ral(example_name)
     
     example = crtk_teleop_example(ral, args.master, args.puppet, args.gripper, args.jaw)
-    ral.spin_and_execute(example)
+    ral.spin_and_execute(example.run)
 
 if __name__ == '__main__':
     main()
