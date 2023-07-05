@@ -13,7 +13,8 @@
 # > rosrun sensable_phantom_ros sensable_phantom -j sawSensablePhantomRight.json
 
 # To communicate with the device using ROS topics, see the python based example:
-# > rosrun crtk_python_client crtk_haptic_example.py <device-namespace>
+# > rosrun crtk_python_client crtk_haptic_example <device-namespace>
+# For dVRK, add -b/--body flag when running the crtk_haptic_example
 
 import argparse
 import crtk
@@ -41,7 +42,7 @@ class crtk_haptic_example:
             m.data = absolute
             self.set_cf_orientation_absolute_pub.publish(m)
 
-    def __init__(self, ral):
+    def __init__(self, ral, has_body_orientation):
         self.ral = ral
 
         # populate this class with all the ROS topics we need
@@ -50,11 +51,16 @@ class crtk_haptic_example:
         self.crtk_utils.add_measured_cp()
         self.crtk_utils.add_measured_cv()
 
-        self.body = crtk_haptic_example.Subframe(self.ral.create_child('/body'))
+        if has_body_orientation:
+            self.body = crtk_haptic_example.Subframe(self.ral.create_child('/body'))
+            self.servo_cf = lambda sp: self.body.servo_cf(sp)
+        else:
+            self.body = None
+            self.crtk_utils.add_servo_cf()
 
         # for all examples
         self.duration = 20 # seconds
-        self.rate = 500 # aiming for 500 Hz
+        self.rate = 200 # aiming for 200 Hz
         self.samples = self.duration * self.rate
 
     # main loop
@@ -69,7 +75,8 @@ class crtk_haptic_example:
             print('Unable to home the device, make sure it is connected.')
             return
 
-        self.body.set_cf_orientation_absolute()
+        if self.body is not None:
+            self.body.set_cf_orientation_absolute()
 
         self.running = True
         while (self.running):
@@ -117,11 +124,11 @@ class crtk_haptic_example:
                     wrench[d] = p_gain * (distance - dim)
                 elif  (distance < -dim):
                     wrench[d] = p_gain * (distance + dim)
-            self.body.servo_cf(wrench)
+            self.servo_cf(wrench)
             sleep_rate.sleep()
 
         wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        self.body.servo_cf(wrench)
+        self.servo_cf(wrench)
 
     # viscosity
     def run_viscosity(self):
@@ -132,22 +139,23 @@ class crtk_haptic_example:
             # foreach d dimension x, y, z
             for d in range(3):
                 wrench[d] = d_gain * self.measured_cv()[d]
-            self.body.servo_cf(wrench)
+            self.servo_cf(wrench)
             sleep_rate.sleep()
 
         wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        self.body.servo_cf(wrench)
+        self.servo_cf(wrench)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('namespace', type = str, help = 'ROS namespace for CRTK device')
+    parser.add_argument('-b', '--body', action = 'store_true', help = 'Indicates CRTK device body orientation needs to be set to absolute')
     app_args = crtk.ral.parse_argv(sys.argv[1:]) # process and remove ROS args
     args = parser.parse_args(app_args) 
 
     example_name = type(crtk_haptic_example).__name__
     ral = crtk.ral(example_name, args.namespace)
-    example = crtk_haptic_example(ral)
+    example = crtk_haptic_example(ral, args.body)
     ral.spin_and_execute(example.run)
 
 if __name__ == '__main__':
