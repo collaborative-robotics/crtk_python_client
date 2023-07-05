@@ -15,6 +15,7 @@
 # To communicate with the device using ROS topics, see the python based example:
 # > rosrun crtk_python_client crtk_haptic_example.py <device-namespace>
 
+import argparse
 import crtk
 import PyKDL
 import std_msgs.msg
@@ -99,9 +100,10 @@ class crtk_haptic_example:
 
     # virtual box
     def run_box(self):
-        # save current position
-        dim = 0.02 # 2 cm cube
+        dim = 0.01 # +/- 1 cm per dimension creates a 2 cm cube
         p_gain = -500.0
+
+        # save current position
         center = PyKDL.Frame()
         center.p = self.measured_cp().p
 
@@ -123,7 +125,7 @@ class crtk_haptic_example:
 
     # viscosity
     def run_viscosity(self):
-        d_gain = -30.0
+        d_gain = -10.0
         sleep_rate = self.ral.create_rate(self.rate)
         for i in range(self.samples):
             wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -138,13 +140,13 @@ class crtk_haptic_example:
 
 
 def main():
-    if (len(sys.argv) != 2):
-        print(sys.argv[0], ' requires one argument, i.e. crtk device namespace')
-        return
+    parser = argparse.ArgumentParser()
+    parser.add_argument('namespace', type = str, help = 'ROS namespace for CRTK device')
+    app_args = crtk.ral.parse_argv(sys.argv[1:]) # process and remove ROS args
+    args = parser.parse_args(app_args) 
 
     example_name = type(crtk_haptic_example).__name__
-    device_namespace = sys.argv[1]
-    ral = crtk.ral(example_name, device_namespace)
+    ral = crtk.ral(example_name, args.namespace)
     example = crtk_haptic_example(ral)
     ral.spin_and_execute(example.run)
 

@@ -14,8 +14,9 @@
 # > rosrun sensable_phantom_ros sensable_phantom -j sawSensablePhantomRight.json
 
 # To communicate with the device using ROS topics, see the python based example:
-# > rosrun crtk_python_client crtk_teleop_example <device-namespace>
+# > rosrun crtk_python_client crtk_teleop_example <master device namespace> <puppet device namespace>
 
+import argparse
 import crtk
 import math
 import PyKDL
@@ -147,24 +148,18 @@ class crtk_teleop_example:
 
 
 def main():
-    example_name = type(crtk_teleop_example).__name__
-    ral = crtk.ral('crtk_teleop_example')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('master', type = str, help = 'ROS namespace for master CRTK device')
+    parser.add_argument('puppet', type = str, help = 'ROS namespace for puppet CRTK device')
+    parser.add_argument('-g', '--gripper', type = str, default = '', help = 'absolute ROS namespace for (optional) master gripper')
+    parser.add_argument('-h', '--jaw', type = str, default = '', help = 'absolute ROS namespace for (optional) puppet jaw')
+    app_args = crtk.ral.parse_argv(sys.argv[1:]) # process and remove ROS args
+    args = parser.parse_args(app_args) 
 
-    if (len(sys.argv) == 3):
-        master_namespace = sys.argv[1]
-        puppet_namespace = sys.argv[2]
-        gripper_namespace = ''
-        jaw_namespace = ''
-    elif (len(sys.argv) == 5):
-        master_namespace = sys.argv[1]
-        puppet_namespace = sys.argv[2]
-        gripper_namespace = sys.argv[3]
-        jaw_namespace = sys.argv[4]
-    else:
-        print(sys.argv[0], ' requires two or four arguments, i.e. master and puppet namespaces [master gripper and pupper jaw namespaces]')
-        return
+    example_name = type(crtk_teleop_example).__name__
+    ral = crtk.ral(example_name)
     
-    example = crtk_teleop_example(ral, master_namespace, puppet_namespace, gripper_namespace, jaw_namespace)
+    example = crtk_teleop_example(ral, args.master, args.puppet, args.gripper, args.jaw)
     ral.spin_and_execute(example)
 
 if __name__ == '__main__':

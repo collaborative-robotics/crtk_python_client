@@ -12,6 +12,7 @@
 # To communicate with the arm using ROS topics, see the python based example dvrk_arm_test.py:
 # > rosrun crtk_python_client crtk_servo_cv_example.py <arm-name>
 
+import argparse
 import crtk
 import numpy as np
 import sys
@@ -27,10 +28,7 @@ class crtk_servo_cv_example:
         self.crtk_utils.add_setpoint_cp()
         self.crtk_utils.add_servo_cv()
 
-        # for all examples
-        self.duration = 10 # 10 seconds
-        self.rate = 200    # aiming for 200 Hz
-        self.samples = self.duration * self.rate
+        self.duration = 10 # seconds
 
     def run(self):
         self.ral.check_connections()
@@ -44,11 +42,9 @@ class crtk_servo_cv_example:
             return
 
         # create a new goal with constant speed
-        sleep_rate = self.ral.create_rate(self.rate)
-        for i in range(self.samples):
-            vel = np.array([0.05, 0.0, 0.0, 0.0, 0.0, 0.0]) # move 5 cm/sec along x direction
-            self.servo_cv(vel)
-            sleep_rate.sleep()
+        vel = np.array([1e-3, 0.0, 0.0, 0.0, 0.0, 0.0]) # move 1 mm/sec along x direction
+        self.servo_cv(vel)
+        self.ral.create_rate(1/self.duration).sleep() # sleep once for 'duration' seconds
 
         # command zero velcity to stop the robot
         vel = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
@@ -56,13 +52,13 @@ class crtk_servo_cv_example:
 
 
 def main():
-    if (len(sys.argv) != 2):
-        print(sys.argv[0], ' requires one argument, i.e. crtk device namespace')
-        return
+    parser = argparse.ArgumentParser()
+    parser.add_argument('namespace', type = str, help = 'ROS namespace for CRTK device')
+    app_args = crtk.ral.parse_argv(sys.argv[1:]) # process and remove ROS args
+    args = parser.parse_args(app_args) 
 
     example_name = type(crtk_servo_cv_example).__name__
-    device_namespace = sys.argv[1]
-    ral = crtk.ral(example_name, device_namespace)
+    ral = crtk.ral(example_name, args.namespace)
     example = crtk_servo_cv_example(ral)
     ral.spin_and_execute(example.run)
 
