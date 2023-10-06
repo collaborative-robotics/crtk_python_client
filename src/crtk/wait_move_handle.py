@@ -11,9 +11,9 @@
 #       for is_busy=True followed by is_busy=False
 class wait_move_handle:
     def __init__(self, class_instance, ral):
-        self.inst = class_instance
-        self.ral = ral
-        self.start_time = ral.now()
+        self.__inst = class_instance
+        self.__ral = ral
+        self.__start_time = ral.now()
 
         if not class_instance:
             self.wait = self._unsupported
@@ -23,16 +23,16 @@ class wait_move_handle:
         raise RuntimeWarning("can't wait, class doesn't support CRTK operating state")
 
     def wait(self, is_busy = False, timeout = 30.0):
-        if self.ral.is_shutdown():
+        if self.__ral.is_shutdown():
             return False
 
-        return self.inst.wait_for_busy(is_busy = is_busy,
-                                       start_time = self.start_time,
+        return self.__inst.wait_for_busy(is_busy = is_busy,
+                                       start_time = self.__start_time,
                                        timeout = timeout)
 
     def is_busy(self, timeout = 30.0):
         # if we keep asking past timeout, throw an exception
-        if (self.ral.now() - self.start_time) > self.ral.create_duration(timeout):
+        if (self.__ral.now() - self.__start_time) > self.__ral.create_duration(timeout):
             raise RuntimeWarning('is_busy() called after timeout')
 
-        return self.inst.is_busy(start_time = self.start_time)
+        return self.__inst.is_busy(start_time = self.__start_time)
