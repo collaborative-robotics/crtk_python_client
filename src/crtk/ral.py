@@ -108,8 +108,9 @@ class ral:
         self._publishers.append(pub)
         return pub
 
-    def subscriber(self, topic, msg_type, callback, queue_size = 10, *args, **kwargs):
-        sub = rospy.Subscriber(self._add_namespace_to(topic), msg_type, callback=callback,
+    # latch is added to be compatible with ROS2 crtk.ral
+    def subscriber(self, topic, msg_type, callback, queue_size = 10, latch = False, *args, **kwargs):
+        sub = rospy.Subscriber(self._add_namespace_to(topic), msg_type, callback = callback,
                                queue_size = queue_size, *args, **kwargs)
         self._subscribers.append(sub)
         return sub
