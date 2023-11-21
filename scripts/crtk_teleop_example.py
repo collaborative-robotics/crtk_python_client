@@ -14,65 +14,62 @@
 # > rosrun sensable_phantom_ros sensable_phantom -j sawSensablePhantomRight.json
 
 # To communicate with the device using ROS topics, see the python based example:
-# > rosrun crtk_python_client crtk_teleop_example <device-namespace>
+# > rosrun crtk_python_client crtk_teleop_example <master device namespace> <puppet device namespace>
 
+import argparse
 import crtk
 import math
-import sys
-import rospy
-import numpy
 import PyKDL
+import rospy
+import sys
+
 
 if sys.version_info.major < 3:
     input = raw_input
 
+
 # example of application using device.py
 class crtk_teleop_example:
 
-    # populate master with the ROS topics we need
     class Master:
-        def __init__(self, namespace):
-            self.crtk = crtk.utils(self, namespace)
+        def __init__(self, ral):
+            # populate master with the ROS topics we need
+            self.crtk = crtk.utils(self, ral)
             self.crtk.add_operating_state()
             self.crtk.add_measured_cp()
 
-    class Gripper:
-        def __init__(self, namespace):
-            self.crtk = crtk.utils(self, namespace)
-            self.crtk.add_measured_js()
-
-    # populate puppet with the ROS topics we need
     class Puppet:
-        def __init__(self, namespace):
-            self.crtk = crtk.utils(self, namespace)
+        def __init__(self, ral):
+            # populate puppet with the ROS topics we need
+            self.crtk = crtk.utils(self, ral)
             self.crtk.add_operating_state()
             self.crtk.add_setpoint_cp()
             self.crtk.add_servo_cp()
 
+    class Gripper:
+        def __init__(self, ral):
+            self.crtk = crtk.utils(self, ral)
+            self.crtk.add_measured_js()
+
     class Jaw:
-        def __init__(self, namespace):
-            self.crtk = crtk.utils(self, namespace)
+        def __init__(self, ral):
+            self.crtk = crtk.utils(self, ral)
             self.crtk.add_setpoint_js()
             self.crtk.add_servo_jp()
 
-    # configuration
-    def configure(self, master_namespace, puppet_namespace, gripper_namespace, jaw_namespace):
-        # ROS initialization
-        if not rospy.get_node_uri():
-            rospy.init_node('crtk_teleop_example', anonymous = True, log_level = rospy.WARN)
-
-        self.master = self.Master(master_namespace)
-        self.puppet = self.Puppet(puppet_namespace)
-        self.has_gripper = False;
+    def __init__(self, ral, master_namespace, puppet_namespace, gripper_namespace, jaw_namespace):
+        self.master = self.Master(ral.create_child(master_namespace))
+        self.puppet = self.Puppet(ral.create_child(puppet_namespace))
+        self.has_gripper = False
 
         if ((gripper_namespace != '') and (jaw_namespace != '')):
             self.has_gripper = True
-            self.gripper = self.Gripper(gripper_namespace)
-            self.jaw = self.Jaw(jaw_namespace)
+            self.gripper = self.Gripper(ral.create_child(gripper_namespace))
+            self.jaw = self.Jaw(ral.create_child(jaw_namespace))
 
-        # for all examples
-        self.duration = 10 # 10 seconds
-        self.rate = 500    # aiming for 200 Hz
+        self.duration = 10 # seconds
+        self.rate = 500    # aiming for 500 Hz
+        self.sleep_rate = ral.create_rate(self.rate)
         self.samples = self.duration * self.rate
 
     # main loop
@@ -146,22 +143,24 @@ class crtk_teleop_example:
                 else:
                     if (abs(self.gripper.measured_jp()[0] - self.jaw.setpoint_jp()[0]) < math.radians(5.0)):
                         gripper_started = True
-            rospy.sleep(1.0 / self.rate)
 
-# use the class now, i.e. main program
+            self.sleep_rate.sleep()
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('master', type = str, help = 'ROS namespace for master CRTK device')
+    parser.add_argument('puppet', type = str, help = 'ROS namespace for puppet CRTK device')
+    parser.add_argument('-g', '--gripper', type = str, default = '', help = 'absolute ROS namespace for (optional) master gripper')
+    parser.add_argument('-j', '--jaw', type = str, default = '', help = 'absolute ROS namespace for (optional) puppet jaw')
+    app_args = crtk.ral.parse_argv(sys.argv[1:]) # process and remove ROS args
+    args = parser.parse_args(app_args) 
+
+    example_name = type(crtk_teleop_example).__name__
+    ral = crtk.ral(example_name)
+    
+    example = crtk_teleop_example(ral, args.master, args.puppet, args.gripper, args.jaw)
+    ral.spin_and_execute(example.run)
+
 if __name__ == '__main__':
-    try:
-        if (len(sys.argv) == 3):
-            example = crtk_teleop_example()
-            example.configure(sys.argv[1], sys.argv[2], '', '')
-            example.run()
-        else:
-            if (len(sys.argv) == 5):
-                example = crtk_teleop_example()
-                example.configure(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
-                example.run()
-            else:
-                print(sys.argv[0], ' requires two or four arguments, i.e. master and puppet namespaces [master gripper and pupper jaw namespaces]')
-
-    except rospy.ROSInterruptException:
-        pass
+    main()

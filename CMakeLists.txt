@@ -1,5 +1,5 @@
-cmake_minimum_required (VERSION 2.8.3)
-project (crtk_python_client)
+cmake_minimum_required (VERSION 3.1)
+project (crtk_python_client VERSION 1.2.0)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
