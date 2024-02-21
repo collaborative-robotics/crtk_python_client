@@ -1,31 +1,29 @@
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required (VERSION 3.10)
 project (crtk_python_client VERSION 1.2.0)
 
-## Find catkin macros and libraries
-## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages
-find_package (catkin REQUIRED COMPONENTS
-              rospy
-              )
+# first test for ROS1
+find_package (catkin QUIET
+  COMPONENTS rospy)
 
-## The catkin_package macro generates cmake config files for your package
-## Declare things to be passed to dependent projects
-## INCLUDE_DIRS: uncomment this if you package contains header files
-## LIBRARIES: libraries you create in this project that dependent projects also need
-## CATKIN_DEPENDS: catkin_packages dependent projects also need
-## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package (
-#  INCLUDE_DIRS include
-#  LIBRARIES my_pkg
-   CATKIN_DEPENDS rospy
-#  DEPENDS system_lib
-)
+if (catkin_FOUND)
 
-## Mark executable scripts (Python etc.) for installation
-## in contrast to setup.py, you can choose the destination
-# install(PROGRAMS
-#   scripts/my_python_script
-#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+  catkin_package (CATKIN_DEPENDS rospy)
+  catkin_python_setup ()
 
-catkin_python_setup ()
+else (catkin_FOUND)
+
+  # look for ROS2
+  find_package (ament_cmake QUIET)
+  if (ament_cmake_FOUND)
+    find_package (ament_cmake_python REQUIRED)
+    ament_python_install_package (crtk
+      PACKAGE_DIR ${crtk_python_client_SOURCE_DIR}/src/crtk)
+
+    file (GLOB crtk_SCRIPTS scripts/*.py)
+    install (PROGRAMS ${crtk_SCRIPTS}
+      DESTINATION lib/${PROJECT_NAME})
+
+    ament_package ()
+  endif (ament_cmake_FOUND)
+
+endif (catkin_FOUND)
