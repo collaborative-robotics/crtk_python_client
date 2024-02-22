@@ -841,7 +841,10 @@ class utils:
     # internal methods for forward_kinematics
     def __forward_kinematics(self, jp, extra = None):
         # convert to ROS msg and publish
-        request = crtk_msgs.srv.QueryForwardKinematicsRequest()
+        if self.__ral.ros_version() == 1:
+            request = crtk_msgs.srv.QueryForwardKinematicsRequest()
+        else:
+            request = crtk_msgs.srv.QueryForwardKinematics.Request()
         request.jp = jp.tolist()
         response = self.__forward_kinematics_service.call(request)
         if not extra:
@@ -864,7 +867,10 @@ class utils:
     # internal methods for inverse_kinematics
     def __inverse_kinematics(self, jp, cp, extra = None):
         # convert to ROS msg and publish
-        request = crtk_msgs.srv.QueryInverseKinematicsRequest()
+        if self.__ral.ros_version() == 1:
+            request = crtk_msgs.srv.QueryInverseKinematicsRequest()
+        else:
+            request = crtk_msgs.srv.QueryInverseKinematics.Request()
         request.jp = jp.tolist()
         request.cp = msg_conv.FrameToPoseMsg(cp)
         response = self.__inverse_kinematics_service.call(request)
