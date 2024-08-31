@@ -1,6 +1,11 @@
 Change log
 ==========
 
+1.3.0 (2024-08-09)
+==================
+
+* Updated code, `package.xml` and `CMakeLists.txt` so the same repository can be used for both ROS1 and ROS2
+
 1.2.0 (2023-11-21)
 ==================
 
