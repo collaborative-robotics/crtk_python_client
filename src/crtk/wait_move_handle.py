@@ -1,7 +1,7 @@
 # Author(s):  Anton Deguet
 # Created on: 2020-11-23
 #
-# Copyright (c) 2020-2021 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
+# Copyright (c) 2020-2022 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
 # Released under MIT License
 
 # Given a class with CRTK operating state, waits for busy/not busy conditions

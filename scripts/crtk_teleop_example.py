@@ -20,7 +20,6 @@ import argparse
 import crtk
 import math
 import PyKDL
-import rospy
 import sys
 
 
