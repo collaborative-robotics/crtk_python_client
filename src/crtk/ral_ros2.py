@@ -95,6 +95,9 @@ class ral:
         t = self.get_timestamp(t)
         return float(t.nanoseconds)/1e9
 
+    def create_time(self):
+        return rclpy.time.Time()
+
     def create_duration(self, d):
         return rclpy.time.Duration(seconds = d)
 

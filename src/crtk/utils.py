@@ -29,17 +29,17 @@ class utils:
 
     class_instance : object that will be populated
     ral : ral object for the device namespace
-    expected_interval : expected interval at which the device sends its motion state (measured, setpoint, goal)
+    connection_timeout : expected interval at which the device sends its motion state (measured, setpoint, goal)
     """
     def __init__(self,
                  class_instance,
                  ral,
-                 expected_interval = 0.02,
+                 connection_timeout = 0.02,
                  operating_state_instance = None):
         self.__class_instance = class_instance
         self.__operating_state_instance = operating_state_instance
         self.__ral = ral
-        self.__expected_interval = expected_interval
+        self.__connection_timeout = connection_timeout
 
         self.__ral.on_shutdown(self.__ros_shutdown)
 
@@ -47,21 +47,8 @@ class utils:
         if hasattr(self, '_utils__operating_state_event'):
             self.__operating_state_event.set()
 
-    def __wait_for_valid_data(self, data, event, age, wait):
-        event.clear()
-        if age is None:
-            age = self.__expected_interval
-        if wait is None:
-            wait = self.__expected_interval
-        # check if user accepts cached data
-        if age != 0.0:
-            data_age = self.__ral.now() - self.__ral.get_timestamp(data)
-            if data_age <= self.__ral.create_duration(age):
-                return True
-        if wait != 0.0:
-            if event.wait(wait):
-                return True
-        return False
+    def __now(self):
+        return self.__ral.now()
 
     # internal methods to manage state
     def __operating_state_cb(self, msg):
@@ -89,7 +76,7 @@ class utils:
     def __wait_for_operating_state(self, expected_state, timeout):
         if timeout < 0.0:
             return False
-        start_time = self.__ral.now()
+        start_time = self.__now()
         in_time = self.__operating_state_event.wait(timeout)
         if self.__ral.is_shutdown():
             return False
@@ -100,7 +87,7 @@ class utils:
                 return True
             else:
                 # wait a bit more
-                elapsed_time = self.__ral.to_sec(self.__ral.now() - start_time)
+                elapsed_time = self.__ral.to_sec(self.__now() - start_time)
                 self.__operating_state_event.clear()
                 return self.__wait_for_operating_state(expected_state = expected_state,
                                                        timeout = timeout - elapsed_time)
@@ -148,7 +135,7 @@ class utils:
     def __wait_for_homed(self, timeout, expected_homed):
         if timeout < 0.0:
             return False
-        start_time = self.__ral.now()
+        start_time = self.__now()
         self.__operating_state_event.clear()
         in_time = self.__operating_state_event.wait(timeout)
         if self.__ral.is_shutdown():
@@ -160,7 +147,7 @@ class utils:
                 return True
             else:
                 # wait a bit more
-                elapsed_time = self.__ral.to_sec(self.__ral.now() - start_time)
+                elapsed_time = self.__ral.to_sec(self.__now() - start_time)
                 self.__operating_state_event.clear()
                 return self.__wait_for_homed(expected_homed = expected_homed,
                                              timeout = timeout - elapsed_time)
@@ -188,7 +175,7 @@ class utils:
                   extra = None):
         # set start time to now if not specified
         if start_time is None:
-            start_time = self.__ral.now()
+            start_time = self.__now()
         result = True
         if self.__ral.get_timestamp(self.__operating_state_data) > start_time:
             result = self.__operating_state_data.is_busy
@@ -203,8 +190,8 @@ class utils:
                         start_time = None,
                         timeout = 30.0):
         # set start_time if not provided
-        start_time = start_time or self.__ral.now()
-        elapsed = self.__ral.to_sec(self.__ral.now() - start_time)
+        start_time = start_time or self.__now()
+        elapsed = self.__ral.to_sec(self.__now() - start_time)
         if elapsed > timeout:
             return False # past timeout, wait failed
 
@@ -239,7 +226,7 @@ class utils:
         # data
         self.__operating_state_data = crtk_msgs.msg.OperatingState()
         self.__operating_state_event = threading.Event()
-        self.__last_busy_time = self.__ral.now()
+        self.__last_busy_time = self.__now()
 
         # create the subscriber/publisher
         self.__operating_state_subscriber = self.__ral.subscriber(
@@ -273,60 +260,39 @@ class utils:
         else:
             raise RuntimeWarning('over writting operating state for ' + self.__ral.namespace())
 
+
+    # method to check timeout and throw exception if needed
+    def __raise_on_timeout(self, last_ts):
+        delta = self.__now() - last_ts
+        if delta.nanoseconds > (self.__connection_timeout * 1e9):
+            raise RuntimeWarning('connection timeout') 
+
     # internal methods for setpoint_js
     def __setpoint_js_cb(self, msg):
         self.__setpoint_js_data = msg
-        self.__setpoint_js_event.set()
+        self.__setpoint_js_last_time = self.__now()
 
-    def __setpoint_js(self, age = None, wait = None):
-        if self.__wait_for_valid_data(self.__setpoint_js_data,
-                                      self.__setpoint_js_event,
-                                      age, wait):
-            return [numpy.array(self.__setpoint_js_data.position),
-                    numpy.array(self.__setpoint_js_data.velocity),
-                    numpy.array(self.__setpoint_js_data.effort),
-                    self.__ral.to_sec(self.__setpoint_js_data)]
-        raise RuntimeWarning('unable to get setpoint_js ({})'.format(self.__ral.get_topic_name(self.__setpoint_js_subscriber)))
+    def __setpoint_js(self):
+        self.__raise_on_timeout(self.__setpoint_js_last_time)
+        return (numpy.array(self.__setpoint_js_data.position),
+                numpy.array(self.__setpoint_js_data.velocity),
+                numpy.array(self.__setpoint_js_data.effort),
+                self.__ral.to_sec(self.__setpoint_js_data))
 
-    def __setpoint_jp(self, age = None, wait = None, extra = None):
-        """Joint Position Setpoint.  Default age and wait are set to
-        expected_interval.  Age determines maximum age of already
-        received data considered valid.  If age is set to 0, any data
-        already received is considered valid.  Wait is the amount of
-        time user is willing to wait if there's no valid data already
-        received.  The method will not wait if wait is set to 0.
-        """
-        if self.__wait_for_valid_data(self.__setpoint_js_data,
-                                      self.__setpoint_js_event,
-                                      age, wait):
-            if not extra:
-                return numpy.array(self.__setpoint_js_data.position)
-            else:
-                return [numpy.array(self.__setpoint_js_data.position),
-                        self.__ral.to_sec(self.__setpoint_js_data)]
-        raise RuntimeWarning('unable to get setpoint_jp ({})'.format(self.__ral.get_topic_name(self.__setpoint_js_subscriber)))
+    def __setpoint_jp(self):
+        self.__raise_on_timeout(self.__setpoint_js_last_time)
+        return (numpy.array(self.__setpoint_js_data.position),
+                self.__ral.to_sec(self.__setpoint_js_data))
 
     def __setpoint_jv(self, age = None, wait = None, extra = None):
-        if self.__wait_for_valid_data(self.__setpoint_js_data,
-                                      self.__setpoint_js_event,
-                                      age, wait):
-            if not extra:
-                return numpy.array(self.__setpoint_js_data.velocity)
-            else:
-                return [numpy.array(self.__setpoint_js_data.velocity),
-                        self.__ral.to_sec(self.__setpoint_js_data)]
-        raise RuntimeWarning('unable to get setpoint_jv ({})'.format(self.__ral.get_topic_name(self.__setpoint_js_subscriber)))
+        self.__raise_on_timeout(self.__setpoint_js_last_time)
+        return (numpy.array(self.__setpoint_js_data.velocity),
+                self.__ral.to_sec(self.__setpoint_js_data))
 
     def __setpoint_jf(self, age = None, wait = None, extra = None):
-        if self.__wait_for_valid_data(self.__setpoint_js_data,
-                                      self.__setpoint_js_event,
-                                      age, wait):
-            if not extra:
-                return numpy.array(self.__setpoint_js_data.effort)
-            else:
-                return [numpy.array(self.__setpoint_js_data.effort),
-                        self.__ral.to_sec(self.__setpoint_js_data)]
-        raise RuntimeWarning('unable to get setpoint_jf ({})'.format(self.__ral.get_topic_name(self.__setpoint_js_subscriber)))
+        self.__raise_on_timeout(self.__setpoint_js_last_time)
+        return (numpy.array(self.__setpoint_js_data.effort),
+                self.__ral.to_sec(self.__setpoint_js_data))
 
     def add_setpoint_js(self):
         # throw a warning if this has alread been added to the class,
@@ -335,7 +301,7 @@ class utils:
             raise RuntimeWarning('setpoint_js already exists')
         # data
         self.__setpoint_js_data = sensor_msgs.msg.JointState()
-        self.__setpoint_js_event = threading.Event()
+        self.__setpoint_js_last_time = self.__ral.create_time()
         # create the subscriber
         self.__setpoint_js_subscriber = self.__ral.subscriber(
             'setpoint_js',
@@ -352,21 +318,12 @@ class utils:
 
     # internal methods for setpoint_cp
     def __setpoint_cp_cb(self, msg):
-        self.__setpoint_cp_lock = True
         self.__setpoint_cp_data = msg
-        self.__setpoint_cp_lock = False
-        self.__setpoint_cp_event.set()
+        self.__setpoint_cp_last_time = self.__now()
 
-    def __setpoint_cp(self, age = None, wait = None, extra = None):
-        if self.__wait_for_valid_data(self.__setpoint_cp_data,
-                                      self.__setpoint_cp_event,
-                                      age, wait):
-            if not extra:
-                return msg_conv.FrameFromPoseMsg(self.__setpoint_cp_data.pose)
-            else:
-                return [msg_conv.FrameFromPoseMsg(self.__setpoint_cp_data.pose),
-                        self.__ral.to_sec(self.__setpoint_cp_data)]
-        raise RuntimeWarning('unable to get setpoint_cp ({})'.format(self.__ral.get_topic_name(self.__setpoint_cp_subscriber)))
+    def __setpoint_cp(self):
+        return (msg_conv.FrameFromPoseMsg(self.__setpoint_cp_data.pose),
+                self.__ral.to_sec(self.__setpoint_cp_data))
 
     def add_setpoint_cp(self):
         # throw a warning if this has alread been added to the class,
@@ -375,8 +332,7 @@ class utils:
             raise RuntimeWarning('setpoint_cp already exists')
         # data
         self.__setpoint_cp_data = geometry_msgs.msg.PoseStamped()
-        self.__setpoint_cp_event = threading.Event()
-        self.__setpoint_cp_lock = False
+        self.__setpoint_cp_last_time = self.__ral.create_time()
         # create the subscriber
         self.__setpoint_cp_subscriber = self.__ral.subscriber(
             'setpoint_cp',
@@ -391,50 +347,29 @@ class utils:
     # internal methods for measured_js
     def __measured_js_cb(self, msg):
         self.__measured_js_data = msg
-        self.__measured_js_event.set()
+        self.__measured_js_last_time = self.__now()
 
-    def __measured_js(self, age = None, wait = None):
-        if self.__wait_for_valid_data(self.__measured_js_data,
-                                      self.__measured_js_event,
-                                      age, wait):
-            return [numpy.array(self.__measured_js_data.position),
-                    numpy.array(self.__measured_js_data.velocity),
-                    numpy.array(self.__measured_js_data.effort),
-                    self.__ral.to_sec(self.__measured_js_data)]
-        raise RuntimeWarning('unable to get measured_js ({})'.format(self.__ral.get_topic_name(self.__measured_js_subscriber)))
+    def __measured_js(self):
+        self.__raise_on_timeout(self.__measured_js_last_time)
+        return (numpy.array(self.__measured_js_data.position),
+                numpy.array(self.__measured_js_data.velocity),
+                numpy.array(self.__measured_js_data.effort),
+                self.__ral.to_sec(self.__measured_js_data))
 
-    def __measured_jp(self, age = None, wait = None, extra = None):
-        if self.__wait_for_valid_data(self.__measured_js_data,
-                                      self.__measured_js_event,
-                                      age, wait):
-            if not extra:
-                return numpy.array(self.__measured_js_data.position)
-            else:
-                return [numpy.array(self.__measured_js_data.position),
-                        self.__ral.to_sec(self.__measured_js_data)]
-        raise RuntimeWarning('unable to get measured_jp ({})'.format(self.__ral.get_topic_name(self.__measured_js_subscriber)))
+    def __measured_jp(self):
+        self.__raise_on_timeout(self.__measured_js_last_time)
+        return (numpy.array(self.__measured_js_data.position),
+                self.__ral.to_sec(self.__measured_js_data))
 
-    def __measured_jv(self, age = None, wait = None, extra = None):
-        if self.__wait_for_valid_data(self.__measured_js_data,
-                                      self.__measured_js_event,
-                                      age, wait):
-            if not extra:
-                return numpy.array(self.__measured_js_data.velocity)
-            else:
-                return [numpy.array(self.__measured_js_data.velocity),
-                        self.__ral.to_sec(self.__measured_js_data)]
-        raise RuntimeWarning('unable to get measured_jv ({})'.format(self.__ral.get_topic_name(self.__measured_js_subscriber)))
+    def __measured_jv(self):
+        self.__raise_on_timeout(self.__measured_js_last_time)
+        return (numpy.array(self.__measured_js_data.velocity),
+                self.__ral.to_sec(self.__measured_js_data))
 
     def __measured_jf(self, age = None, wait = None, extra = None):
-        if self.__wait_for_valid_data(self.__measured_js_data,
-                                      self.__measured_js_event,
-                                      age, wait):
-            if not extra:
-                return numpy.array(self.__measured_js_data.effort)
-            else:
-                return [numpy.array(self.__measured_js_data.effort),
-                        self.__ral.to_sec(self.__measured_js_data)]
-        raise RuntimeWarning('unable to get measured_jf ({})'.format(self.__ral.get_topic_name(self.__measured_js_subscriber)))
+        self.__raise_on_timeout(self.__measured_js_last_time)
+        return (numpy.array(self.__measured_js_data.effort),
+                self.__ral.to_sec(self.__measured_js_data))
 
     def add_measured_js(self):
         # throw a warning if this has alread been added to the class,
@@ -443,7 +378,7 @@ class utils:
             raise RuntimeWarning('measured_js already exists')
         # data
         self.__measured_js_data = sensor_msgs.msg.JointState()
-        self.__measured_js_event = threading.Event()
+        self.__measured_js_last_time = self.__ral.create_time()
         # create the subscriber
         self.__measured_js_subscriber = self.__ral.subscriber(
             'measured_js',
@@ -460,18 +395,12 @@ class utils:
     # internal methods for measured_cp
     def __measured_cp_cb(self, msg):
         self.__measured_cp_data = msg
-        self.__measured_cp_event.set()
+        self.__measured_cp_last_time = self.__now()
 
-    def __measured_cp(self, age = None, wait = None, extra = None):
-        if self.__wait_for_valid_data(self.__measured_cp_data,
-                                      self.__measured_cp_event,
-                                      age, wait):
-            if not extra:
-                return msg_conv.FrameFromPoseMsg(self.__measured_cp_data.pose)
-            else:
-                return [msg_conv.FrameFromPoseMsg(self.__measured_cp_data.pose),
-                        self.__ral.to_sec(self.__measured_cp_data)]
-        raise RuntimeWarning('unable to get measured_cp ({})'.format(self.__ral.get_topic_name(self.__measured_cp_subscriber)))
+    def __measured_cp(self):
+        self.__raise_on_timeout(self.__measured_cp_last_time)
+        return (msg_conv.FrameFromPoseMsg(self.__measured_cp_data.pose),
+                self.__ral.to_sec(self.__measured_cp_data))
 
     def add_measured_cp(self):
         # throw a warning if this has alread been added to the class,
@@ -480,7 +409,7 @@ class utils:
             raise RuntimeWarning('measured_cp already exists')
         # data
         self.__measured_cp_data = geometry_msgs.msg.PoseStamped()
-        self.__measured_cp_event = threading.Event()
+        self.__measured_cp_last_time = self.__ral.create_time()
         # create the subscriber
         self.__measured_cp_subscriber = self.__ral.subscriber(
             'measured_cp',
@@ -495,18 +424,12 @@ class utils:
     # internal methods for measured_cv
     def __measured_cv_cb(self, msg):
         self.__measured_cv_data = msg
-        self.__measured_cv_event.set()
+        self.__measured_cv_last_time = self.__now()
 
-    def __measured_cv(self, age = None, wait = None, extra = None):
-        if self.__wait_for_valid_data(self.__measured_cv_data,
-                                      self.__measured_cv_event,
-                                      age, wait):
-            if not extra:
-                return msg_conv.ArrayFromTwistMsg(self.__measured_cv_data.twist)
-            else:
-                return [msg_conv.ArrayFromTwistMsg(self.__measured_cv_data.twist),
-                        self.__ral.to_sec(self.__measured_cv_data)]
-        raise RuntimeWarning('unable to get measured_cv ({})'.format(self.__ral.get_topic_name(self.__measured_cv_subscriber)))
+    def __measured_cv(self):
+        self.__raise_on_timeout(self.__measured_cv_last_time)
+        return (msg_conv.ArrayFromTwistMsg(self.__measured_cv_data.twist),
+                self.__ral.to_sec(self.__measured_cv_data))
 
     def add_measured_cv(self):
         # throw a warning if this has alread been added to the class,
@@ -515,7 +438,7 @@ class utils:
             raise RuntimeWarning('measured_cv already exists')
         # data
         self.__measured_cv_data = geometry_msgs.msg.TwistStamped()
-        self.__measured_cv_event = threading.Event()
+        self.__measured_cv_last_time = self.__ral.create_time()
         # create the subscriber
         self.__measured_cv_subscriber = self.__ral.subscriber(
             'measured_cv',
@@ -530,18 +453,12 @@ class utils:
     # internal methods for measured_cf
     def __measured_cf_cb(self, msg):
         self.__measured_cf_data = msg
-        self.__measured_cf_event.set()
+        self.__measured_cf_last_time = self.__now()
 
     def __measured_cf(self, age = None, wait = None, extra = None):
-        if self.__wait_for_valid_data(self.__measured_cf_data,
-                                      self.__measured_cf_event,
-                                      age, wait):
-            if not extra:
-                return msg_conv.ArrayFromWrenchMsg(self.__measured_cf_data.wrench)
-            else:
-                return [msg_conv.ArrayFromWrenchMsg(self.__measured_cf_data.wrench),
-                        self.__ral.to_sec(self.__measured_cf_data)]
-        raise RuntimeWarning('unable to get measured_cf ({})'.format(self.__ral.get_topic_name(self.__measured_cf_subscriber)))
+        self.__raise_on_timeout(self.__measured_cf_last_time)
+        return (msg_conv.ArrayFromWrenchMsg(self.__measured_cf_data.wrench),
+                self.__ral.to_sec(self.__measured_cf_data))
 
     def add_measured_cf(self):
         # throw a warning if this has alread been added to the class,
@@ -550,7 +467,7 @@ class utils:
             raise RuntimeWarning('measured_cf already exists')
         # data
         self.__measured_cf_data = geometry_msgs.msg.WrenchStamped()
-        self.__measured_cf_event = threading.Event()
+        self.__measured_cf_last_time = self.__ral.create_time()
         # create the subscriber
         self.__measured_cf_subscriber = self.__ral.subscriber(
             'measured_cf',
@@ -565,9 +482,10 @@ class utils:
     # internal methods for jacobian
     def __jacobian_cb(self, msg):
         self.__jacobian_data = msg
-        self.__jacobian_event.set()
+        self.__jacobian_last_time = self.__now()
 
     def __jacobian(self):
+        print('todo, add valid/timeout')
         jacobian = numpy.asarray(self.__jacobian_data.data)
         jacobian.shape = self.__jacobian_data.layout.dim[0].size, self.__jacobian_data.layout.dim[1].size
         return jacobian
@@ -579,7 +497,7 @@ class utils:
             raise RuntimeWarning('jacobian already exists')
         # data
         self.__jacobian_data = std_msgs.msg.Float64MultiArray()
-        self.__jacobian_event = threading.Event()
+        self.__jacobian_last_time = self.__ral.create_time()
         # create the subscriber
         self.__jacobian_subscriber = self.__ral.subscriber(
             'jacobian',
