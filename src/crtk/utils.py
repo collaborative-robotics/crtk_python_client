@@ -303,7 +303,7 @@ class utils:
             raise RuntimeWarning('setpoint_js already exists')
         # data
         self.__setpoint_js_data = sensor_msgs.msg.JointState()
-        self.__setpoint_js_last_time = self.__ral.old_ts()
+        self.__setpoint_js_last_time = self.__old_ts()
         # create the subscriber
         self.__setpoint_js_subscriber = self.__ral.subscriber(
             'setpoint_js',
