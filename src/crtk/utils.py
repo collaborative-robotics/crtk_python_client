@@ -1,11 +1,10 @@
 #  Author(s):  Anton Deguet
 #  Created on: 2018-02-15
 #
-# Copyright (c) 2018-2023 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
+# Copyright (c) 2018-2024 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
 # Released under MIT License
 
 import threading
-
 import numpy
 import std_msgs.msg
 import geometry_msgs.msg
@@ -34,7 +33,7 @@ class utils:
     def __init__(self,
                  class_instance,
                  ral,
-                 connection_timeout = 0.02,
+                 connection_timeout = 1.0,
                  operating_state_instance = None):
         self.__class_instance = class_instance
         self.__operating_state_instance = operating_state_instance
@@ -49,6 +48,9 @@ class utils:
 
     def __now(self):
         return self.__ral.now()
+
+    def __old_ts(self):
+        return self.__ral.now() - (self.connection_timeout * 1e9)
 
     # internal methods to manage state
     def __operating_state_cb(self, msg):
@@ -264,8 +266,8 @@ class utils:
     # method to check timeout and throw exception if needed
     def __raise_on_timeout(self, last_ts):
         delta = self.__now() - last_ts
-        if delta.nanoseconds > (self.__connection_timeout * 1e9):
-            raise RuntimeWarning('connection timeout') 
+        if self.__ral.to_sec(delta.nanoseconds) > self.__connection_timeout:
+            raise TimeoutError(f'last data received more than {self.__connection_timeout}s ago')
 
     # internal methods for setpoint_js
     def __setpoint_js_cb(self, msg):
@@ -301,7 +303,7 @@ class utils:
             raise RuntimeWarning('setpoint_js already exists')
         # data
         self.__setpoint_js_data = sensor_msgs.msg.JointState()
-        self.__setpoint_js_last_time = self.__ral.create_time()
+        self.__setpoint_js_last_time = self.__ral.old_ts()
         # create the subscriber
         self.__setpoint_js_subscriber = self.__ral.subscriber(
             'setpoint_js',
@@ -332,7 +334,7 @@ class utils:
             raise RuntimeWarning('setpoint_cp already exists')
         # data
         self.__setpoint_cp_data = geometry_msgs.msg.PoseStamped()
-        self.__setpoint_cp_last_time = self.__ral.create_time()
+        self.__setpoint_cp_last_time = self.__old_ts()
         # create the subscriber
         self.__setpoint_cp_subscriber = self.__ral.subscriber(
             'setpoint_cp',
@@ -378,7 +380,7 @@ class utils:
             raise RuntimeWarning('measured_js already exists')
         # data
         self.__measured_js_data = sensor_msgs.msg.JointState()
-        self.__measured_js_last_time = self.__ral.create_time()
+        self.__measured_js_last_time = self.__old_ts()
         # create the subscriber
         self.__measured_js_subscriber = self.__ral.subscriber(
             'measured_js',
@@ -409,7 +411,7 @@ class utils:
             raise RuntimeWarning('measured_cp already exists')
         # data
         self.__measured_cp_data = geometry_msgs.msg.PoseStamped()
-        self.__measured_cp_last_time = self.__ral.create_time()
+        self.__measured_cp_last_time = self.__old_ts()
         # create the subscriber
         self.__measured_cp_subscriber = self.__ral.subscriber(
             'measured_cp',
@@ -438,7 +440,7 @@ class utils:
             raise RuntimeWarning('measured_cv already exists')
         # data
         self.__measured_cv_data = geometry_msgs.msg.TwistStamped()
-        self.__measured_cv_last_time = self.__ral.create_time()
+        self.__measured_cv_last_time = self.__old_ts()
         # create the subscriber
         self.__measured_cv_subscriber = self.__ral.subscriber(
             'measured_cv',
@@ -467,7 +469,7 @@ class utils:
             raise RuntimeWarning('measured_cf already exists')
         # data
         self.__measured_cf_data = geometry_msgs.msg.WrenchStamped()
-        self.__measured_cf_last_time = self.__ral.create_time()
+        self.__measured_cf_last_time = self.__old_ts()
         # create the subscriber
         self.__measured_cf_subscriber = self.__ral.subscriber(
             'measured_cf',
@@ -497,7 +499,7 @@ class utils:
             raise RuntimeWarning('jacobian already exists')
         # data
         self.__jacobian_data = std_msgs.msg.Float64MultiArray()
-        self.__jacobian_last_time = self.__ral.create_time()
+        self.__jacobian_last_time = self.__old_ts()
         # create the subscriber
         self.__jacobian_subscriber = self.__ral.subscriber(
             'jacobian',
