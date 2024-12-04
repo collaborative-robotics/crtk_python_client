@@ -38,7 +38,7 @@ class utils:
         self.__class_instance = class_instance
         self.__operating_state_instance = operating_state_instance
         self.__ral = ral
-        self.__connection_timeout = connection_timeout
+        self.__connection_timeout = self.__ral.create_duration(connection_timeout)
 
         self.__ral.on_shutdown(self.__ros_shutdown)
 
@@ -50,7 +50,7 @@ class utils:
         return self.__ral.now()
 
     def __old_ts(self):
-        return self.__ral.now() - (self.connection_timeout * 1e9)
+        return self.__ral.now() - self.__connection_timeout
 
     # internal methods to manage state
     def __operating_state_cb(self, msg):
@@ -266,8 +266,8 @@ class utils:
     # method to check timeout and throw exception if needed
     def __raise_on_timeout(self, last_ts):
         delta = self.__now() - last_ts
-        if self.__ral.to_sec(delta.nanoseconds) > self.__connection_timeout:
-            raise TimeoutError(f'last data received more than {self.__connection_timeout}s ago')
+        if delta > self.__connection_timeout:
+            raise TimeoutError(f'last data received more than {self.__connection_timeout} ago')
 
     # internal methods for setpoint_js
     def __setpoint_js_cb(self, msg):
