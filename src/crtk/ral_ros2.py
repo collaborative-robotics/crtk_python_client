@@ -77,8 +77,7 @@ class ral:
         return child
 
     def now(self):
-        clock = self._node.get_clock()
-        return clock.now()
+        return self._node.get_clock().now()
 
     def get_timestamp(self, t):
         if hasattr(t, 'header'):
@@ -99,17 +98,23 @@ class ral:
         return rclpy.time.Duration(seconds = d)
 
     def create_rate(self, rate_hz):
-        return self._node.create_rate(rate_hz)
+        return self._node.create_rate(frequency = rate_hz,
+                                      clock = self._node.get_clock())
+
+    def create_time(self):
+        return rclpy.time.Time(seconds = 0.0,
+                               clock_type = self._node.get_clock().clock_type)
 
     def spin(self):
         if self._executor_thread != None:
             return
-        executor = rclpy.executors.MultiThreadedExecutor()
+        executor = rclpy.executors.SingleThreadedExecutor()
         executor.add_node(self._node)
         self._executor_thread = threading.Thread(target = executor.spin, daemon = True)
         self._executor_thread.start()
 
     def shutdown(self):
+        # if not self.is_shutdown():
         rclpy.shutdown()
         if self._executor_thread != None:
             self._executor_thread.join()
@@ -122,7 +127,7 @@ class ral:
         except KeyboardInterrupt:
             pass
         self.shutdown()
-
+            
     def on_shutdown(self, callback):
         rclpy.get_default_context().on_shutdown(callback)
 

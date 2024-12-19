@@ -12,6 +12,7 @@ import sensor_msgs.msg
 import crtk_msgs.msg
 import crtk_msgs.srv
 import crtk.wait_move_handle
+import time
 
 import crtk.msg_conversions as msg_conv
 
@@ -50,7 +51,7 @@ class utils:
         return self.__ral.now()
 
     def __old_ts(self):
-        return self.__ral.now() - self.__connection_timeout
+        return self.__ral.create_time()
 
     # internal methods to manage state
     def __operating_state_cb(self, msg):
@@ -266,9 +267,15 @@ class utils:
     # method to check timeout and throw exception if needed
     def __raise_on_timeout(self, last_ts):
         delta = self.__now() - last_ts
-        if delta > self.__connection_timeout:
-            raise TimeoutError(f'last data received more than {self.__connection_timeout} ago')
+        if delta < self.__connection_timeout:
+            return
 
+        if last_ts.nanoseconds == 0:
+            raise TimeoutError('no data received yet')
+            
+        raise TimeoutError(f'last data received more than {self.__connection_timeout} ago')
+
+    
     # internal methods for setpoint_js
     def __setpoint_js_cb(self, msg):
         self.__setpoint_js_data = msg
