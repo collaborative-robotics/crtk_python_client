@@ -31,11 +31,16 @@ class utils:
     ral : ral object for the device namespace
     connection_timeout : expected interval at which the device sends its motion state (measured, setpoint, goal)
     """
+
+    # member types
+    __ral: crtk.ral
+    __operating_state_event: threading.Event
+
     def __init__(self,
                  class_instance,
-                 ral,
-                 connection_timeout = 1.0,
-                 operating_state_instance = None):
+                 ral: crtk.ral,
+                 connection_timeout:float = 1.0,
+                 operating_state_instance = None) -> None:
         self.__class_instance = class_instance
         self.__operating_state_instance = operating_state_instance
         self.__ral = ral
@@ -43,18 +48,23 @@ class utils:
 
         self.__ral.on_shutdown(self.__ros_shutdown)
 
-    def __ros_shutdown(self):
+
+    def __ros_shutdown(self) -> None:
         if hasattr(self, '_utils__operating_state_event'):
             self.__operating_state_event.set()
 
-    def __now(self):
+
+    def __now(self) -> float:
         return self.__ral.now()
 
-    def __old_ts(self):
+
+    def __old_ts(self) -> float:
         return self.__ral.create_time()
 
+
     # internal methods to manage state
-    def __operating_state_cb(self, msg):
+    def __operating_state_cb(self,
+                             msg) -> None:
         event_time = self.__ral.get_timestamp(msg)
         last_event_time = self.__ral.get_timestamp(self.__operating_state_data)
 
@@ -69,14 +79,19 @@ class utils:
         # then when all data is saved, release "lock"
         self.__operating_state_event.set()
 
-    def __operating_state(self, extra = None):
+
+    def __operating_state(self,
+                          extra = None) -> str | tuple[str, float]:
         if not extra:
             return self.__operating_state_data.state
         else:
-            return [self.__operating_state_data.state,
-                    self.__ral.to_sec(self.__operating_state_data)]
+            return (self.__operating_state_data.state,
+                    self.__ral.to_sec(self.__operating_state_data))
 
-    def __wait_for_operating_state(self, expected_state, timeout):
+
+    def __wait_for_operating_state(self,
+                                   expected_state: str,
+                                   timeout: float) -> bool:
         if timeout < 0.0:
             return False
         start_time = self.__now()
@@ -97,7 +112,9 @@ class utils:
         # past timeout
         return False
 
-    def __state_command(self, state):
+
+    def __state_command(self,
+                        state: str) -> None:
         # clear timeout
         self.__operating_state_event.clear()
         # convert to ROS msg and publish
@@ -106,10 +123,10 @@ class utils:
         # publish and wait
         self.__state_command_publisher.publish(msg)
 
-    def __is_enabled(self):
+    def __is_enabled(self) -> str:
         return self.__operating_state_data.state == 'ENABLED'
 
-    def __enable(self, timeout = 0):
+    def __enable(self, timeout: float = 0.0) -> bool:
         if self.__is_enabled():
             self.__state_command("enable")
             return True
@@ -117,10 +134,12 @@ class utils:
         self.__state_command("enable")
         return self.__wait_for_operating_state('ENABLED', timeout)
 
-    def __is_disabled(self):
+
+    def __is_disabled(self) -> bool:
         return self.__operating_state_data.state == 'DISABLED'
 
-    def __disable(self, timeout = 0):
+
+    def __disable(self, timeout: float = 0.0) -> bool:
         if self.__is_disabled():
             self.__state_command("disable")
             return True
@@ -128,14 +147,17 @@ class utils:
         self.__state_command("disable")
         return self.__wait_for_operating_state('DISABLED', timeout)
 
-    def __is_homed(self, extra = None):
+
+    def __is_homed(self, extra = None) -> bool | tuple[bool, float]:
         if not extra:
             return self.__operating_state_data.is_homed
         else:
-            return [self.__operating_state_data.is_homed,
-                    self.__ral.to_sec(self.__operating_state_data)]
+            return (self.__operating_state_data.is_homed,
+                    self.__ral.to_sec(self.__operating_state_data))
 
-    def __wait_for_homed(self, timeout, expected_homed):
+
+    def __wait_for_homed(self, timeout: float,
+                         expected_homed) -> bool:
         if timeout < 0.0:
             return False
         start_time = self.__now()
@@ -157,7 +179,8 @@ class utils:
         # past timeout
         return False
 
-    def __home(self, timeout = 0):
+
+    def __home(self, timeout: float = 0.0) -> bool:
         if self.__is_homed():
             self.__state_command("home")
             return True
@@ -165,7 +188,8 @@ class utils:
         self.__state_command("home")
         return self.__wait_for_homed(timeout, True)
 
-    def __unhome(self, timeout = 0):
+
+    def __unhome(self, timeout: float = 0.0) -> bool:
         if not self.__is_homed():
             self.__state_command("unhome")
             return True
@@ -173,9 +197,10 @@ class utils:
         self.__state_command("unhome")
         return self.__wait_for_homed(timeout, False)
 
+
     def __is_busy(self,
                   start_time = None,
-                  extra = None):
+                  extra = None) -> bool | tuple[bool, float]:
         # set start time to now if not specified
         if start_time is None:
             start_time = self.__now()
@@ -185,13 +210,14 @@ class utils:
         if not extra:
             return result
         else:
-            return [result,
-                    self.__ral.to_sec(self.__operating_state_data)]
+            return (result,
+                    self.__ral.to_sec(self.__operating_state_data))
+
 
     def __wait_for_busy(self,
-                        is_busy = False,
+                        is_busy: bool = False,
                         start_time = None,
-                        timeout = 30.0):
+                        timeout: float = 30.0) -> bool:
         # set start_time if not provided
         start_time = start_time or self.__now()
         elapsed = self.__ral.to_sec(self.__now() - start_time)
@@ -221,7 +247,8 @@ class utils:
                                     start_time = start_time,
                                     timeout = timeout)
 
-    def add_operating_state(self):
+
+    def add_operating_state(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'operating_state'):
@@ -265,45 +292,50 @@ class utils:
 
 
     # method to check timeout and throw exception if needed
-    def __raise_on_timeout(self, last_ts):
+    def __raise_on_timeout(self, last_ts) -> None:
         delta = self.__now() - last_ts
         if delta < self.__connection_timeout:
             return
 
         if last_ts.nanoseconds == 0:
             raise TimeoutError('no data received yet')
-            
+
         raise TimeoutError(f'last data received more than {self.__connection_timeout} ago')
 
-    
+
     # internal methods for setpoint_js
-    def __setpoint_js_cb(self, msg):
+    def __setpoint_js_cb(self, msg) -> None:
         self.__setpoint_js_data = msg
         self.__setpoint_js_last_time = self.__now()
 
-    def __setpoint_js(self):
+
+    def __setpoint_js(self) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, float]:
         self.__raise_on_timeout(self.__setpoint_js_last_time)
         return (numpy.array(self.__setpoint_js_data.position),
                 numpy.array(self.__setpoint_js_data.velocity),
                 numpy.array(self.__setpoint_js_data.effort),
                 self.__ral.to_sec(self.__setpoint_js_data))
 
-    def __setpoint_jp(self):
+
+    def __setpoint_jp(self) -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__setpoint_js_last_time)
         return (numpy.array(self.__setpoint_js_data.position),
                 self.__ral.to_sec(self.__setpoint_js_data))
 
-    def __setpoint_jv(self, age = None, wait = None, extra = None):
+
+    def __setpoint_jv(self) -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__setpoint_js_last_time)
         return (numpy.array(self.__setpoint_js_data.velocity),
                 self.__ral.to_sec(self.__setpoint_js_data))
 
-    def __setpoint_jf(self, age = None, wait = None, extra = None):
+
+    def __setpoint_jf(self) -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__setpoint_js_last_time)
         return (numpy.array(self.__setpoint_js_data.effort),
                 self.__ral.to_sec(self.__setpoint_js_data))
 
-    def add_setpoint_js(self):
+
+    def add_setpoint_js(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'setpoint_js'):
@@ -326,15 +358,17 @@ class utils:
 
 
     # internal methods for setpoint_cp
-    def __setpoint_cp_cb(self, msg):
+    def __setpoint_cp_cb(self, msg) -> None:
         self.__setpoint_cp_data = msg
         self.__setpoint_cp_last_time = self.__now()
+
 
     def __setpoint_cp(self):
         return (msg_conv.FrameFromPoseMsg(self.__setpoint_cp_data.pose),
                 self.__ral.to_sec(self.__setpoint_cp_data))
 
-    def add_setpoint_cp(self):
+
+    def add_setpoint_cp(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'setpoint_cp'):
@@ -354,33 +388,38 @@ class utils:
 
 
     # internal methods for measured_js
-    def __measured_js_cb(self, msg):
+    def __measured_js_cb(self, msg) -> None:
         self.__measured_js_data = msg
         self.__measured_js_last_time = self.__now()
 
-    def __measured_js(self):
+        
+    def __measured_js(self) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, float]:
         self.__raise_on_timeout(self.__measured_js_last_time)
         return (numpy.array(self.__measured_js_data.position),
                 numpy.array(self.__measured_js_data.velocity),
                 numpy.array(self.__measured_js_data.effort),
                 self.__ral.to_sec(self.__measured_js_data))
 
-    def __measured_jp(self):
+    
+    def __measured_jp(self) -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__measured_js_last_time)
         return (numpy.array(self.__measured_js_data.position),
                 self.__ral.to_sec(self.__measured_js_data))
 
-    def __measured_jv(self):
+    
+    def __measured_jv(self) -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__measured_js_last_time)
         return (numpy.array(self.__measured_js_data.velocity),
                 self.__ral.to_sec(self.__measured_js_data))
 
-    def __measured_jf(self, age = None, wait = None, extra = None):
+    
+    def __measured_jf(self) -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__measured_js_last_time)
         return (numpy.array(self.__measured_js_data.effort),
                 self.__ral.to_sec(self.__measured_js_data))
 
-    def add_measured_js(self):
+    
+    def add_measured_js(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'measured_js'):
@@ -402,16 +441,18 @@ class utils:
 
 
     # internal methods for measured_cp
-    def __measured_cp_cb(self, msg):
+    def __measured_cp_cb(self, msg) -> None:
         self.__measured_cp_data = msg
         self.__measured_cp_last_time = self.__now()
 
+        
     def __measured_cp(self):
         self.__raise_on_timeout(self.__measured_cp_last_time)
         return (msg_conv.FrameFromPoseMsg(self.__measured_cp_data.pose),
                 self.__ral.to_sec(self.__measured_cp_data))
 
-    def add_measured_cp(self):
+    
+    def add_measured_cp(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'measured_cp'):
@@ -431,16 +472,18 @@ class utils:
 
 
     # internal methods for measured_cv
-    def __measured_cv_cb(self, msg):
+    def __measured_cv_cb(self, msg) -> None:
         self.__measured_cv_data = msg
         self.__measured_cv_last_time = self.__now()
 
-    def __measured_cv(self):
+        
+    def __measured_cv(self) -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__measured_cv_last_time)
         return (msg_conv.ArrayFromTwistMsg(self.__measured_cv_data.twist),
                 self.__ral.to_sec(self.__measured_cv_data))
 
-    def add_measured_cv(self):
+    
+    def add_measured_cv(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'measured_cv'):
@@ -460,16 +503,18 @@ class utils:
 
 
     # internal methods for measured_cf
-    def __measured_cf_cb(self, msg):
+    def __measured_cf_cb(self, msg) -> None:
         self.__measured_cf_data = msg
         self.__measured_cf_last_time = self.__now()
 
-    def __measured_cf(self, age = None, wait = None, extra = None):
+        
+    def __measured_cf(self):
         self.__raise_on_timeout(self.__measured_cf_last_time)
         return (msg_conv.ArrayFromWrenchMsg(self.__measured_cf_data.wrench),
                 self.__ral.to_sec(self.__measured_cf_data))
 
-    def add_measured_cf(self):
+    
+    def add_measured_cf(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'measured_cf'):
@@ -489,17 +534,19 @@ class utils:
 
 
     # internal methods for jacobian
-    def __jacobian_cb(self, msg):
+    def __jacobian_cb(self, msg) -> None:
         self.__jacobian_data = msg
         self.__jacobian_last_time = self.__now()
 
+        
     def __jacobian(self):
         print('todo, add valid/timeout')
         jacobian = numpy.asarray(self.__jacobian_data.data)
         jacobian.shape = self.__jacobian_data.layout.dim[0].size, self.__jacobian_data.layout.dim[1].size
         return jacobian
 
-    def add_jacobian(self):
+    
+    def add_jacobian(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'jacobian'):
@@ -519,12 +566,13 @@ class utils:
 
 
     # internal methods for hold
-    def __hold(self):
+    def __hold(self) -> None:
         # convert to ROS msg and publish
         msg = std_msgs.msg.Empty()
         self.__hold_publisher.publish(msg)
 
-    def add_hold(self):
+        
+    def add_hold(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'hold'):
@@ -540,12 +588,13 @@ class utils:
 
 
     # internal methods for free
-    def __free(self):
+    def __free(self) -> None:
         # convert to ROS msg and publish
         msg = std_msgs.msg.Empty()
         self.__free_publisher.publish(msg)
 
-    def add_free(self):
+        
+    def add_free(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'free'):
@@ -568,7 +617,8 @@ class utils:
         msg.velocity = setpoint_v.tolist()
         self.__servo_jp_publisher.publish(msg)
 
-    def add_servo_jp(self):
+        
+    def add_servo_jp(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'servo_jp'):
@@ -590,7 +640,7 @@ class utils:
         msg.position = setpoint.tolist()
         self.__servo_jr_publisher.publish(msg)
 
-    def add_servo_jr(self):
+    def add_servo_jr(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'servo_jr'):
@@ -612,7 +662,7 @@ class utils:
         msg.pose = msg_conv.FrameToPoseMsg(setpoint)
         self.__servo_cp_publisher.publish(msg)
 
-    def add_servo_cp(self):
+    def add_servo_cp(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'servo_cp'):
@@ -656,7 +706,7 @@ class utils:
         msg.wrench = msg_conv.ArrayToWrenchMsg(setpoint)
         self.__servo_cf_publisher.publish(msg)
 
-    def add_servo_cf(self):
+    def add_servo_cf(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'servo_cf'):
@@ -702,7 +752,7 @@ class utils:
         self.__move_jp_publisher.publish(msg)
         return handle
 
-    def add_move_jp(self):
+    def add_move_jp(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'move_jp'):
@@ -750,7 +800,7 @@ class utils:
         self.__move_cp_publisher.publish(msg)
         return handle
 
-    def add_move_cp(self):
+    def add_move_cp(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'move_cp'):
@@ -777,9 +827,11 @@ class utils:
         if not extra:
             return msg_conv.FrameFromPoseMsg(response.cp)
         else:
-            return [msg_conv.FrameFromPoseMsg(response.cp), response.result, response.message]
+            return (msg_conv.FrameFromPoseMsg(response.cp),
+                    response.result,
+                    response.message)
 
-    def add_forward_kinematics(self):
+    def add_forward_kinematics(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'forward_kinematics'):
@@ -804,9 +856,11 @@ class utils:
         if not extra:
             return numpy.array(response.jp)
         else:
-            return [numpy.array(response.jp), response.result, response.message]
+            return (numpy.array(response.jp),
+                    response.result,
+                    response.message)
 
-    def add_inverse_kinematics(self):
+    def add_inverse_kinematics(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'inverse_kinematics'):
