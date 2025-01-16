@@ -1,7 +1,7 @@
 #  Author(s):  Anton Deguet
 #  Created on: 2023-05-08
 #
-# Copyright (c) 2023-2024 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
+# Copyright (c) 2023-2025 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
 # Released under MIT License
 
 import rclpy
@@ -105,12 +105,19 @@ class ral:
         return rclpy.time.Time(seconds = 0.0,
                                clock_type = self._node.get_clock().clock_type)
 
+    def _try_spin(self):
+        try:
+            executor = rclpy.executors.SingleThreadedExecutor()
+            executor.add_node(self._node)
+            executor.spin()
+        except rclpy.executors.ExternalShutdownException:
+            pass
+        
     def spin(self):
         if self._executor_thread != None:
             return
-        executor = rclpy.executors.SingleThreadedExecutor()
-        executor.add_node(self._node)
-        self._executor_thread = threading.Thread(target = executor.spin, daemon = True)
+        self._executor_thread = threading.Thread(target = self._try_spin,
+                                                 daemon = True)
         self._executor_thread.start()
 
     def shutdown(self):
