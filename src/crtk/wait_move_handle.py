@@ -10,6 +10,10 @@
 # - wait(is_busy=False) waits for *transition* to is_busy=False, i.e. waits
 #       for is_busy=True followed by is_busy=False
 class wait_move_handle:
+    """Class for wait handle returned by move commands.
+
+    """
+    
     def __init__(self, class_instance, ral):
         self.__inst = class_instance
         self.__ral = ral
@@ -23,6 +27,9 @@ class wait_move_handle:
         raise RuntimeWarning("can't wait, class doesn't support CRTK operating state")
 
     def wait(self, is_busy = False, timeout = 30.0):
+        """Wait
+
+        """
         if self.__ral.is_shutdown():
             return False
 

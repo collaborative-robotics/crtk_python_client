@@ -1,6 +1,11 @@
 Change log
 ==========
 
+1.3.1 (2025-01-17)
+==================
+
+* ROS2 ral spin uses SingleThreadedExecutor.  MultiThreadedExecutor lead to strange bugs on Ubuntu 24.04 with ROS Jazzy
+
 1.3.0 (2024-08-09)
 ==================
 

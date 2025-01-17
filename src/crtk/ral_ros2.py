@@ -1,7 +1,7 @@
 #  Author(s):  Anton Deguet
 #  Created on: 2023-05-08
 #
-# Copyright (c) 2023 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
+# Copyright (c) 2023-2025 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
 # Released under MIT License
 
 import rclpy
@@ -104,7 +104,7 @@ class ral:
     def spin(self):
         if self._executor_thread != None:
             return
-        executor = rclpy.executors.MultiThreadedExecutor()
+        executor = rclpy.executors.SingleThreadedExecutor()
         executor.add_node(self._node)
         self._executor_thread = threading.Thread(target = executor.spin, daemon = True)
         self._executor_thread.start()

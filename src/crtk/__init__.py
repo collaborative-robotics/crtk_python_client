@@ -1,14 +1,19 @@
 #  Author(s):  Anton Deguet
 #  Created on: 2016-05
 #
-# Copyright (c) 2016-2023 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
+# Copyright (c) 2016-2024 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
 # Released under MIT License
 
 __all__ = ['wait_move_handle', 'utils', 'joystick_button', 'measured_cp']
 
 # ros abstraction layer
 import os
-__ros_version_string = os.environ['ROS_VERSION']
+try:
+    __ros_version_string = os.environ['ROS_VERSION']
+except:
+    __ros_version_string ='2'
+    print('environment variable ROS_VERSION is not set, did you source your setup.bash?')
+
 if __ros_version_string == '1':
     __all__.append('ros_ral1')
     from .ral_ros1 import ral
