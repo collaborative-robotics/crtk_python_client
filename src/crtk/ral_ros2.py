@@ -77,8 +77,7 @@ class ral:
         return child
 
     def now(self):
-        clock = self._node.get_clock()
-        return clock.now()
+        return self._node.get_clock().now()
 
     def get_timestamp(self, t):
         if hasattr(t, 'header'):
@@ -99,14 +98,26 @@ class ral:
         return rclpy.time.Duration(seconds = d)
 
     def create_rate(self, rate_hz):
-        return self._node.create_rate(rate_hz)
+        return self._node.create_rate(frequency = rate_hz,
+                                      clock = self._node.get_clock())
 
+    def create_time(self):
+        return rclpy.time.Time(seconds = 0.0,
+                               clock_type = self._node.get_clock().clock_type)
+
+    def _try_spin(self):
+        try:
+            executor = rclpy.executors.SingleThreadedExecutor()
+            executor.add_node(self._node)
+            executor.spin()
+        except rclpy.executors.ExternalShutdownException:
+            pass
+        
     def spin(self):
         if self._executor_thread != None:
             return
-        executor = rclpy.executors.SingleThreadedExecutor()
-        executor.add_node(self._node)
-        self._executor_thread = threading.Thread(target = executor.spin, daemon = True)
+        self._executor_thread = threading.Thread(target = self._try_spin,
+                                                 daemon = True)
         self._executor_thread.start()
 
     def shutdown(self):
