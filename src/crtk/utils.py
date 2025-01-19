@@ -81,7 +81,7 @@ class utils:
 
 
     def __operating_state(self,
-                          extra = None) -> str | tuple[str, float]:
+                          extra = None) -> str: # | tuple[str, float]:
         if not extra:
             return self.__operating_state_data.state
         else:
@@ -148,7 +148,7 @@ class utils:
         return self.__wait_for_operating_state('DISABLED', timeout)
 
 
-    def __is_homed(self, extra = None) -> bool | tuple[bool, float]:
+    def __is_homed(self, extra = None) -> bool: # | tuple[bool, float]:
         if not extra:
             return self.__operating_state_data.is_homed
         else:
@@ -200,7 +200,7 @@ class utils:
 
     def __is_busy(self,
                   start_time = None,
-                  extra = None) -> bool | tuple[bool, float]:
+                  extra = None) -> bool : #| tuple[bool, float]:
         # set start time to now if not specified
         if start_time is None:
             start_time = self.__now()
@@ -309,7 +309,7 @@ class utils:
         self.__setpoint_js_last_time = self.__now()
 
 
-    def __setpoint_js(self) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, float]:
+    def __setpoint_js(self): #  -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, float]:
         self.__raise_on_timeout(self.__setpoint_js_last_time)
         return (numpy.array(self.__setpoint_js_data.position),
                 numpy.array(self.__setpoint_js_data.velocity),
@@ -317,19 +317,19 @@ class utils:
                 self.__ral.to_sec(self.__setpoint_js_data))
 
 
-    def __setpoint_jp(self) -> tuple[numpy.ndarray, float]:
+    def __setpoint_jp(self): # -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__setpoint_js_last_time)
         return (numpy.array(self.__setpoint_js_data.position),
                 self.__ral.to_sec(self.__setpoint_js_data))
 
 
-    def __setpoint_jv(self) -> tuple[numpy.ndarray, float]:
+    def __setpoint_jv(self): # -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__setpoint_js_last_time)
         return (numpy.array(self.__setpoint_js_data.velocity),
                 self.__ral.to_sec(self.__setpoint_js_data))
 
 
-    def __setpoint_jf(self) -> tuple[numpy.ndarray, float]:
+    def __setpoint_jf(self): # -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__setpoint_js_last_time)
         return (numpy.array(self.__setpoint_js_data.effort),
                 self.__ral.to_sec(self.__setpoint_js_data))
@@ -393,7 +393,7 @@ class utils:
         self.__measured_js_last_time = self.__now()
 
         
-    def __measured_js(self) -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, float]:
+    def __measured_js(self): # -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, float]:
         self.__raise_on_timeout(self.__measured_js_last_time)
         return (numpy.array(self.__measured_js_data.position),
                 numpy.array(self.__measured_js_data.velocity),
@@ -401,19 +401,19 @@ class utils:
                 self.__ral.to_sec(self.__measured_js_data))
 
     
-    def __measured_jp(self) -> tuple[numpy.ndarray, float]:
+    def __measured_jp(self): # -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__measured_js_last_time)
         return (numpy.array(self.__measured_js_data.position),
                 self.__ral.to_sec(self.__measured_js_data))
 
     
-    def __measured_jv(self) -> tuple[numpy.ndarray, float]:
+    def __measured_jv(self): # -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__measured_js_last_time)
         return (numpy.array(self.__measured_js_data.velocity),
                 self.__ral.to_sec(self.__measured_js_data))
 
     
-    def __measured_jf(self) -> tuple[numpy.ndarray, float]:
+    def __measured_jf(self): # -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__measured_js_last_time)
         return (numpy.array(self.__measured_js_data.effort),
                 self.__ral.to_sec(self.__measured_js_data))
@@ -477,7 +477,7 @@ class utils:
         self.__measured_cv_last_time = self.__now()
 
         
-    def __measured_cv(self) -> tuple[numpy.ndarray, float]:
+    def __measured_cv(self): # -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__measured_cv_last_time)
         return (msg_conv.ArrayFromTwistMsg(self.__measured_cv_data.twist),
                 self.__ral.to_sec(self.__measured_cv_data))

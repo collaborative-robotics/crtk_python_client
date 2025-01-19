@@ -82,6 +82,9 @@ class ral:
     def create_rate(self, rate_hz):
         return rospy.Rate(rate_hz)
 
+    def create_time(self):
+        return rospy.Time()
+
     def spin(self):
         pass # Not applicable in ROS 1
 
