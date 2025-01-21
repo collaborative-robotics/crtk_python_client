@@ -1,7 +1,7 @@
 #  Author(s):  Anton Deguet
 #  Created on: 2018-02-15
 #
-# Copyright (c) 2018-2024 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
+# Copyright (c) 2018-2025 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
 # Released under MIT License
 
 import threading
@@ -44,7 +44,8 @@ class utils:
         self.__class_instance = class_instance
         self.__operating_state_instance = operating_state_instance
         self.__ral = ral
-        self.__connection_timeout = self.__ral.create_duration(connection_timeout)
+        self.__connection_timeout = connection_timeout
+        self.__connection_timeout_ns = connection_timeout * 1e9
 
         self.__ral.on_shutdown(self.__ros_shutdown)
 
@@ -56,10 +57,6 @@ class utils:
 
     def __now(self) -> float:
         return self.__ral.now()
-
-
-    def __old_ts(self) -> float:
-        return self.__ral.create_time()
 
 
     # internal methods to manage state
@@ -293,20 +290,20 @@ class utils:
 
     # method to check timeout and throw exception if needed
     def __raise_on_timeout(self, last_ts) -> None:
-        delta = self.__now() - last_ts
-        if delta < self.__connection_timeout:
+        delta = time.time_ns() - last_ts
+        if delta < self.__connection_timeout_ns:
             return
 
-        if last_ts.nanoseconds == 0:
+        if last_ts == 0:
             raise TimeoutError('no data received yet')
 
-        raise TimeoutError(f'last data received more than {self.__connection_timeout} ago')
+        raise TimeoutError(f'last data received more than {self.__connection_timeout} seconds ago')
 
 
     # internal methods for setpoint_js
     def __setpoint_js_cb(self, msg) -> None:
         self.__setpoint_js_data = msg
-        self.__setpoint_js_last_time = self.__now()
+        self.__setpoint_js_last_time = time.time_ns()
 
 
     def __setpoint_js(self): #  -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, float]:
@@ -342,7 +339,7 @@ class utils:
             raise RuntimeWarning('setpoint_js already exists')
         # data
         self.__setpoint_js_data = sensor_msgs.msg.JointState()
-        self.__setpoint_js_last_time = self.__old_ts()
+        self.__setpoint_js_last_time = 0
         # create the subscriber
         self.__setpoint_js_subscriber = self.__ral.subscriber(
             'setpoint_js',
@@ -360,7 +357,7 @@ class utils:
     # internal methods for setpoint_cp
     def __setpoint_cp_cb(self, msg) -> None:
         self.__setpoint_cp_data = msg
-        self.__setpoint_cp_last_time = self.__now()
+        self.__setpoint_cp_last_time = time.time_ns()
 
 
     def __setpoint_cp(self):
@@ -375,7 +372,7 @@ class utils:
             raise RuntimeWarning('setpoint_cp already exists')
         # data
         self.__setpoint_cp_data = geometry_msgs.msg.PoseStamped()
-        self.__setpoint_cp_last_time = self.__old_ts()
+        self.__setpoint_cp_last_time = 0
         # create the subscriber
         self.__setpoint_cp_subscriber = self.__ral.subscriber(
             'setpoint_cp',
@@ -390,9 +387,9 @@ class utils:
     # internal methods for measured_js
     def __measured_js_cb(self, msg) -> None:
         self.__measured_js_data = msg
-        self.__measured_js_last_time = self.__now()
+        self.__measured_js_last_time = time.time_ns()
 
-        
+
     def __measured_js(self): # -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, float]:
         self.__raise_on_timeout(self.__measured_js_last_time)
         return (numpy.array(self.__measured_js_data.position),
@@ -400,25 +397,25 @@ class utils:
                 numpy.array(self.__measured_js_data.effort),
                 self.__ral.to_sec(self.__measured_js_data))
 
-    
+
     def __measured_jp(self): # -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__measured_js_last_time)
         return (numpy.array(self.__measured_js_data.position),
                 self.__ral.to_sec(self.__measured_js_data))
 
-    
+
     def __measured_jv(self): # -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__measured_js_last_time)
         return (numpy.array(self.__measured_js_data.velocity),
                 self.__ral.to_sec(self.__measured_js_data))
 
-    
+
     def __measured_jf(self): # -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__measured_js_last_time)
         return (numpy.array(self.__measured_js_data.effort),
                 self.__ral.to_sec(self.__measured_js_data))
 
-    
+
     def add_measured_js(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
@@ -426,7 +423,7 @@ class utils:
             raise RuntimeWarning('measured_js already exists')
         # data
         self.__measured_js_data = sensor_msgs.msg.JointState()
-        self.__measured_js_last_time = self.__old_ts()
+        self.__measured_js_last_time = 0
         # create the subscriber
         self.__measured_js_subscriber = self.__ral.subscriber(
             'measured_js',
@@ -443,15 +440,15 @@ class utils:
     # internal methods for measured_cp
     def __measured_cp_cb(self, msg) -> None:
         self.__measured_cp_data = msg
-        self.__measured_cp_last_time = self.__now()
+        self.__measured_cp_last_time = time.time_ns()
 
-        
+
     def __measured_cp(self):
         self.__raise_on_timeout(self.__measured_cp_last_time)
         return (msg_conv.FrameFromPoseMsg(self.__measured_cp_data.pose),
                 self.__ral.to_sec(self.__measured_cp_data))
 
-    
+
     def add_measured_cp(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
@@ -459,7 +456,7 @@ class utils:
             raise RuntimeWarning('measured_cp already exists')
         # data
         self.__measured_cp_data = geometry_msgs.msg.PoseStamped()
-        self.__measured_cp_last_time = self.__old_ts()
+        self.__measured_cp_last_time = 0
         # create the subscriber
         self.__measured_cp_subscriber = self.__ral.subscriber(
             'measured_cp',
@@ -474,15 +471,15 @@ class utils:
     # internal methods for measured_cv
     def __measured_cv_cb(self, msg) -> None:
         self.__measured_cv_data = msg
-        self.__measured_cv_last_time = self.__now()
+        self.__measured_cv_last_time = time.time_ns()
 
-        
+
     def __measured_cv(self): # -> tuple[numpy.ndarray, float]:
         self.__raise_on_timeout(self.__measured_cv_last_time)
         return (msg_conv.ArrayFromTwistMsg(self.__measured_cv_data.twist),
                 self.__ral.to_sec(self.__measured_cv_data))
 
-    
+
     def add_measured_cv(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
@@ -490,7 +487,7 @@ class utils:
             raise RuntimeWarning('measured_cv already exists')
         # data
         self.__measured_cv_data = geometry_msgs.msg.TwistStamped()
-        self.__measured_cv_last_time = self.__old_ts()
+        self.__measured_cv_last_time = 0
         # create the subscriber
         self.__measured_cv_subscriber = self.__ral.subscriber(
             'measured_cv',
@@ -505,15 +502,15 @@ class utils:
     # internal methods for measured_cf
     def __measured_cf_cb(self, msg) -> None:
         self.__measured_cf_data = msg
-        self.__measured_cf_last_time = self.__now()
+        self.__measured_cf_last_time = time.time_ns()
 
-        
+
     def __measured_cf(self):
         self.__raise_on_timeout(self.__measured_cf_last_time)
         return (msg_conv.ArrayFromWrenchMsg(self.__measured_cf_data.wrench),
                 self.__ral.to_sec(self.__measured_cf_data))
 
-    
+
     def add_measured_cf(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
@@ -521,7 +518,7 @@ class utils:
             raise RuntimeWarning('measured_cf already exists')
         # data
         self.__measured_cf_data = geometry_msgs.msg.WrenchStamped()
-        self.__measured_cf_last_time = self.__old_ts()
+        self.__measured_cf_last_time = 0
         # create the subscriber
         self.__measured_cf_subscriber = self.__ral.subscriber(
             'measured_cf',
@@ -536,16 +533,16 @@ class utils:
     # internal methods for jacobian
     def __jacobian_cb(self, msg) -> None:
         self.__jacobian_data = msg
-        self.__jacobian_last_time = self.__now()
+        self.__jacobian_last_time = time.time_ns()
 
-        
+
     def __jacobian(self):
         print('todo, add valid/timeout')
         jacobian = numpy.asarray(self.__jacobian_data.data)
         jacobian.shape = self.__jacobian_data.layout.dim[0].size, self.__jacobian_data.layout.dim[1].size
         return jacobian
 
-    
+
     def add_jacobian(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
@@ -553,7 +550,7 @@ class utils:
             raise RuntimeWarning('jacobian already exists')
         # data
         self.__jacobian_data = std_msgs.msg.Float64MultiArray()
-        self.__jacobian_last_time = self.__old_ts()
+        self.__jacobian_last_time = 0
         # create the subscriber
         self.__jacobian_subscriber = self.__ral.subscriber(
             'jacobian',
@@ -571,7 +568,7 @@ class utils:
         msg = std_msgs.msg.Empty()
         self.__hold_publisher.publish(msg)
 
-        
+
     def add_hold(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
@@ -593,7 +590,7 @@ class utils:
         msg = std_msgs.msg.Empty()
         self.__free_publisher.publish(msg)
 
-        
+
     def add_free(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
@@ -617,7 +614,7 @@ class utils:
         msg.velocity = setpoint_v.tolist()
         self.__servo_jp_publisher.publish(msg)
 
-        
+
     def add_servo_jp(self) -> None:
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
