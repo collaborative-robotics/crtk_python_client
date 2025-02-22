@@ -3,7 +3,7 @@
 # Author: Anton Deguet
 # Date: 2018-09-29
 #
-# Copyright (c) 2018-2021 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
+# Copyright (c) 2018-2025 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
 # Released under MIT License
 
 # Start your crtk compatible device first!
@@ -21,11 +21,7 @@ import crtk
 import math
 import PyKDL
 import sys
-
-
-if sys.version_info.major < 3:
-    input = raw_input
-
+import time
 
 # example of application using device.py
 class crtk_teleop_example:
@@ -34,14 +30,12 @@ class crtk_teleop_example:
         def __init__(self, ral):
             # populate master with the ROS topics we need
             self.crtk = crtk.utils(self, ral)
-            self.crtk.add_operating_state()
             self.crtk.add_measured_cp()
 
     class Puppet:
         def __init__(self, ral):
             # populate puppet with the ROS topics we need
             self.crtk = crtk.utils(self, ral)
-            self.crtk.add_operating_state()
             self.crtk.add_setpoint_cp()
             self.crtk.add_servo_cp()
 
@@ -73,21 +67,12 @@ class crtk_teleop_example:
 
     # main loop
     def run(self):
-        if not self.master.enable(5.0):
-            print("Unable to enable the master device, make sure it is connected.")
-            return
-        if not self.puppet.enable(5.0):
-            print("Unable to enable the puppet device, make sure it is connected.")
-            return
-
         self.running = True
         while (self.running):
             print ('\n- q: quit\n- p: print position, velocity\n- t: position based teleop (10s)')
             answer = input('Enter your choice and [enter] to continue\n')
             if answer == 'q':
                 self.running = False
-                self.master.disable()
-                self.puppet.disable()
             elif answer == 'p':
                 self.run_print()
             elif answer == 't':
@@ -98,9 +83,11 @@ class crtk_teleop_example:
     # print positions
     def run_print(self):
         print('master')
-        print(self.master.measured_cp().p)
+        m_cp, _ = self.master.measured_cp()
+        print(m_cp.p)
         print('puppet')
-        print(self.puppet.setpoint_cp().p)
+        p_cp, _ = self.puppet.setpoint_cp()
+        print(p_cp.p)
 
     # position based teleop
     def run_teleop(self):
@@ -117,10 +104,11 @@ class crtk_teleop_example:
         registration_rotation.M.DoRotX(math.pi / 2.0)
 
         # scale (should be using ros::param)
-        scale = 0.5
+        scale = 0.1
         # record where we started, only positions
-        start_master = PyKDL.Frame(registration_rotation.Inverse() * self.master.measured_cp())
-        start_puppet = PyKDL.Frame(self.puppet.setpoint_cp())
+        m_cp, _ = self.master.measured_cp()
+        start_master = PyKDL.Frame(registration_rotation.Inverse() * m_cp)
+        start_puppet, _ = self.puppet.setpoint_cp()
 
         # create the target goal for the puppet, use current orientation
         goal_puppet = PyKDL.Frame()
@@ -131,16 +119,20 @@ class crtk_teleop_example:
         # loop
         for i in range(self.samples):
             # current master in puppet orientation
-            current_master = PyKDL.Frame(registration_rotation.Inverse() * self.master.measured_cp())
+            m_cp, _ = self.master.measured_cp()
+            current_master = PyKDL.Frame(registration_rotation.Inverse() * m_cp)
             goal_puppet.p = start_puppet.p + scale * (current_master.p - start_master.p)
             goal_puppet.M = current_master.M * start_master.M.Inverse() * start_puppet.M # this is not working yet!
             self.puppet.servo_cp(goal_puppet)
             # gripper
             if (self.has_gripper):
                 if (gripper_started):
-                    self.jaw.servo_jp(self.gripper.measured_jp())
+                    g_jp, _ = self.gripper.measured_jp()
+                    self.jaw.servo_jp(g_jp)
                 else:
-                    if (abs(self.gripper.measured_jp()[0] - self.jaw.setpoint_jp()[0]) < math.radians(5.0)):
+                    g_jp, _ = self.gripper.measured_jp()
+                    j_jp, _ = self.jaw.setpoint_jp()
+                    if (abs(g_jp[0] - j_jp()[0]) < math.radians(5.0)):
                         gripper_started = True
 
             self.sleep_rate.sleep()
@@ -153,11 +145,11 @@ def main():
     parser.add_argument('-g', '--gripper', type = str, default = '', help = 'absolute ROS namespace for (optional) master gripper')
     parser.add_argument('-j', '--jaw', type = str, default = '', help = 'absolute ROS namespace for (optional) puppet jaw')
     app_args = crtk.ral.parse_argv(sys.argv[1:]) # process and remove ROS args
-    args = parser.parse_args(app_args) 
+    args = parser.parse_args(app_args)
 
     example_name = type(crtk_teleop_example).__name__
     ral = crtk.ral(example_name)
-    
+
     example = crtk_teleop_example(ral, args.master, args.puppet, args.gripper, args.jaw)
     ral.spin_and_execute(example.run)
 
