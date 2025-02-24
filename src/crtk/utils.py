@@ -718,6 +718,33 @@ class utils:
         self.__class_instance.servo_cf = self.__servo_cf
 
 
+    # internal methods for servo_cs
+    def __servo_cs(self, position, velocity, force):
+        # convert to ROS msg and publish
+        msg = crtk_msgs.msg.CartesianState()
+        msg.pose_is_valid = std_msgs.msg.Bool(data=position is not None)
+        msg.pose = msg_conv.FrameToPoseMsg(position) if position else geometry_msgs.msg.Pose()
+        msg.twist_is_valid = std_msgs.msg.Bool(data=velocity is not None)
+        msg.twist = msg_conv.ArrayToTwistMsg(velocity) if velocity else geometry_msgs.msg.Twist()
+        msg.wrench_is_valid = std_msgs.msg.Bool(data=force is not None)
+        msg.wrench = msg_conv.ArrayToWrenchMsg(force) if force else geometry_msgs.msg.Wrench()
+        self.__servo_cs_publisher.publish(msg)
+
+    def add_servo_cs(self) -> None:
+        # throw a warning if this has alread been added to the class,
+        # using the callback name to test
+        if hasattr(self.__class_instance, 'servo_cs'):
+            raise RuntimeWarning('servo_cs already exists')
+        # create the subscriber
+        self.__servo_cs_publisher = self.__ral.publisher(
+            'servo_cs',
+            crtk_msgs.msg.CartesianState,
+            latch = False, queue_size = 10
+        )
+        # add attributes to class instance
+        self.__class_instance.servo_cs = self.__servo_cs
+
+
     # internal methods for servo_cv
     def __servo_cv(self, setpoint):
         # convert to ROS msg and publish
