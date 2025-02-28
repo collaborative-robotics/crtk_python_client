@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#! /usr/bin/env python3
 
 # Author: Anton Deguet
 # Date: 2018-09-29
@@ -13,18 +13,21 @@
 # Phantom Omni example:
 # > rosrun sensable_phantom_ros sensable_phantom -j sawSensablePhantomRight.json
 
+# Make sure to enable/home the robot if needed
+
 # To communicate with the device using ROS topics, see the python based example:
 # > rosrun crtk_python_client crtk_teleop_example <master device namespace> <puppet device namespace>
+
+# Note: for a dVRK teleop example, see dvrk_python/scripts/dvrk_teleoperation.py
 
 import argparse
 import crtk
 import math
 import PyKDL
 import sys
-import time
 
-# example of application using device.py
 class crtk_teleop_example:
+    """Example of simple teleop using CRTK"""
 
     class Master:
         def __init__(self, ral):
@@ -51,6 +54,7 @@ class crtk_teleop_example:
             self.crtk.add_servo_jp()
 
     def __init__(self, ral, master_namespace, puppet_namespace, gripper_namespace, jaw_namespace):
+        self.ral = ral
         self.master = self.Master(ral.create_child(master_namespace))
         self.puppet = self.Puppet(ral.create_child(puppet_namespace))
         self.has_gripper = False
@@ -60,38 +64,10 @@ class crtk_teleop_example:
             self.gripper = self.Gripper(ral.create_child(gripper_namespace))
             self.jaw = self.Jaw(ral.create_child(jaw_namespace))
 
-        self.duration = 10 # seconds
         self.rate = 500    # aiming for 500 Hz
-        self.sleep_rate = ral.create_rate(self.rate)
-        self.samples = self.duration * self.rate
-
-    # main loop
-    def run(self):
-        self.running = True
-        while (self.running):
-            print ('\n- q: quit\n- p: print position, velocity\n- t: position based teleop (10s)')
-            answer = input('Enter your choice and [enter] to continue\n')
-            if answer == 'q':
-                self.running = False
-            elif answer == 'p':
-                self.run_print()
-            elif answer == 't':
-                self.run_teleop()
-            else:
-                print('Invalid choice\n')
-
-    # print positions
-    def run_print(self):
-        print('master')
-        m_cp, _ = self.master.measured_cp()
-        print(m_cp.p)
-        print('puppet')
-        p_cp, _ = self.puppet.setpoint_cp()
-        print(p_cp.p)
 
     # position based teleop
-    def run_teleop(self):
-
+    def run(self):
         # registration between master and puppet.  Ideally we don't
         # use this, the devices should be able to set a base frame
         registration_rotation = PyKDL.Frame()
@@ -106,9 +82,9 @@ class crtk_teleop_example:
         # scale (should be using ros::param)
         scale = 0.1
         # record where we started, only positions
-        m_cp, _ = self.master.measured_cp()
+        m_cp, _ = self.master.measured_cp(wait_timeout=1.0)
         start_master = PyKDL.Frame(registration_rotation.Inverse() * m_cp)
-        start_puppet, _ = self.puppet.setpoint_cp()
+        start_puppet, _ = self.puppet.setpoint_cp(wait_timeout=1.0)
 
         # create the target goal for the puppet, use current orientation
         goal_puppet = PyKDL.Frame()
@@ -116,8 +92,8 @@ class crtk_teleop_example:
         # start only when gripper is close to jaw angle
         gripper_started = False
 
-        # loop
-        for i in range(self.samples):
+        run_rate = self.ral.create_rate(self.rate)
+        while not self.ral.is_shutdown():
             # current master in puppet orientation
             m_cp, _ = self.master.measured_cp()
             current_master = PyKDL.Frame(registration_rotation.Inverse() * m_cp)
@@ -132,10 +108,10 @@ class crtk_teleop_example:
                 else:
                     g_jp, _ = self.gripper.measured_jp()
                     j_jp, _ = self.jaw.setpoint_jp()
-                    if (abs(g_jp[0] - j_jp()[0]) < math.radians(5.0)):
+                    if (abs(g_jp[0] - j_jp[0]) < math.radians(5.0)):
                         gripper_started = True
 
-            self.sleep_rate.sleep()
+            run_rate.sleep()
 
 
 def main():
@@ -150,8 +126,8 @@ def main():
     example_name = type(crtk_teleop_example).__name__
     ral = crtk.ral(example_name)
 
-    example = crtk_teleop_example(ral, args.master, args.puppet, args.gripper, args.jaw)
-    ral.spin_and_execute(example.run)
+    teleop = crtk_teleop_example(ral, args.master, args.puppet, args.gripper, args.jaw)
+    ral.spin_and_execute(teleop.run)
 
 if __name__ == '__main__':
     main()

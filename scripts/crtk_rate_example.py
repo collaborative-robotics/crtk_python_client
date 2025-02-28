@@ -1,32 +1,30 @@
-import rclpy
+#! /usr/bin/env python3
+
+import crtk
 import sys
-import threading
 import time
 
-def test_function(a_node):
+def do_work():
+    # fake example
+    pass
+
+def rate_example(ral):
     start = time.time()
     period = 0.001 # 1 ms
     duration = 10  # seconds
     samples = duration / period
-    sleep_rate = a_node.create_rate(1.0 / period)
-    print(f'{samples} samples')
-    for i in range(int(samples)):
+    sleep_rate = ral.create_rate(1.0 / period)
+    print(f'Sleeping for {period} seconds, {samples} times')
+
+    for _ in range(int(samples)):
+        do_work()
         sleep_rate.sleep()
 
     actual_duration = time.time() - start
-    print('servo_jp complete in %2.2f seconds (expected %2.2f)' % (actual_duration, duration))
+    print(f'Completed in {actual_duration:2.2f} seconds (expected {duration:2.2f})')
 
     
 if __name__ == '__main__':
-    rclpy.init(args = sys.argv[1:])
-    test_node =  rclpy.create_node('test_node')
-
-    executor = rclpy.executors.SingleThreadedExecutor()
-    executor.add_node(test_node)
-    executor_thread = threading.Thread(target = executor.spin, daemon = True)
-    executor_thread.start()
-
-    test_function(test_node)
-
-    rclpy.shutdown()
-    executor_thread.join()
+    crtk.ral.parse_argv(sys.argv[1:])
+    ral = crtk.ral('crtk_rate_example')
+    ral.spin_and_execute(lambda: rate_example(ral))

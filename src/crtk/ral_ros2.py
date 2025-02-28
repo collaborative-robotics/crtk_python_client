@@ -121,7 +121,9 @@ class ral:
         self._executor_thread.start()
 
     def shutdown(self):
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
+
         if self._executor_thread != None:
             self._executor_thread.join()
             self._executor_thread = None
