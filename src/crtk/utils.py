@@ -62,12 +62,13 @@ class utils:
     # internal methods to manage state
     def __operating_state_cb(self,
                              msg) -> None:
+        now = self.__ral.now()
         event_time = self.__ral.get_timestamp(msg)
         last_event_time = self.__ral.get_timestamp(self.__operating_state_data)
 
         # update last_busy_time
-        if msg.is_busy and event_time > self.__last_busy_time:
-            self.__last_busy_time = event_time
+        if msg.is_busy and now > self.__last_busy_time:
+            self.__last_busy_time = now
 
         if event_time > last_event_time:
             # crtk operating state contains state as well as homed and busy
