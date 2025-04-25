@@ -62,12 +62,13 @@ class utils:
     # internal methods to manage state
     def __operating_state_cb(self,
                              msg) -> None:
+        now = self.__ral.now()
         event_time = self.__ral.get_timestamp(msg)
         last_event_time = self.__ral.get_timestamp(self.__operating_state_data)
 
         # update last_busy_time
-        if msg.is_busy and event_time > self.__last_busy_time:
-            self.__last_busy_time = event_time
+        if msg.is_busy and now > self.__last_busy_time:
+            self.__last_busy_time = now
 
         if event_time > last_event_time:
             # crtk operating state contains state as well as homed and busy
@@ -288,16 +289,33 @@ class utils:
             raise RuntimeWarning('over writting operating state for ' + self.__ral.namespace())
 
 
-    # method to check timeout and throw exception if needed
-    def __raise_on_timeout(self, last_ts) -> None:
-        delta = time.time_ns() - last_ts
+    def __raise_on_not_received(self, last_received_ts) -> None:
+        """Check for connection timeout and throw exception if needed"""
+        delta = time.time_ns() - last_received_ts
         if delta < self.__connection_timeout_ns:
             return
 
-        if last_ts == 0:
+        if last_received_ts == 0:
             raise TimeoutError('no data received yet')
 
         raise TimeoutError(f'last data received more than {self.__connection_timeout} seconds ago')
+
+
+    def __wait_for_received(self, get_last_received_ts, timeout):
+        """Wait for first data to be received, at most `timeout` seconds.
+           `get_last_received_ts` should be a callable which returns time (ns)
+           when last data was received.
+        """
+        if timeout is None:
+            return
+
+        start = self.__ral.now()
+        while self.__ral.to_sec(self.__ral.now() - start) < timeout:
+            time_since_receive = time.time_ns() - get_last_received_ts()
+            if time_since_receive < self.__connection_timeout_ns:
+                return
+
+        raise TimeoutError(f'no data received within {timeout} seconds')
 
 
     # internal methods for setpoint_js
@@ -306,28 +324,32 @@ class utils:
         self.__setpoint_js_last_time = time.time_ns()
 
 
-    def __setpoint_js(self): #  -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, float]:
-        self.__raise_on_timeout(self.__setpoint_js_last_time)
+    def __setpoint_js(self, wait_timeout=None): #  -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, float]:
+        self.__wait_for_received(lambda: self.__setpoint_js_last_time, wait_timeout)
+        self.__raise_on_not_received(self.__setpoint_js_last_time)
         return (numpy.array(self.__setpoint_js_data.position),
                 numpy.array(self.__setpoint_js_data.velocity),
                 numpy.array(self.__setpoint_js_data.effort),
                 self.__ral.to_sec(self.__setpoint_js_data))
 
 
-    def __setpoint_jp(self): # -> tuple[numpy.ndarray, float]:
-        self.__raise_on_timeout(self.__setpoint_js_last_time)
+    def __setpoint_jp(self, wait_timeout=None): # -> tuple[numpy.ndarray, float]:
+        self.__wait_for_received(lambda: self.__setpoint_js_last_time, wait_timeout)
+        self.__raise_on_not_received(self.__setpoint_js_last_time)
         return (numpy.array(self.__setpoint_js_data.position),
                 self.__ral.to_sec(self.__setpoint_js_data))
 
 
-    def __setpoint_jv(self): # -> tuple[numpy.ndarray, float]:
-        self.__raise_on_timeout(self.__setpoint_js_last_time)
+    def __setpoint_jv(self, wait_timeout=None): # -> tuple[numpy.ndarray, float]:
+        self.__wait_for_received(lambda: self.__setpoint_js_last_time, wait_timeout)
+        self.__raise_on_not_received(self.__setpoint_js_last_time)
         return (numpy.array(self.__setpoint_js_data.velocity),
                 self.__ral.to_sec(self.__setpoint_js_data))
 
 
-    def __setpoint_jf(self): # -> tuple[numpy.ndarray, float]:
-        self.__raise_on_timeout(self.__setpoint_js_last_time)
+    def __setpoint_jf(self, wait_timeout=None): # -> tuple[numpy.ndarray, float]:
+        self.__wait_for_received(lambda: self.__setpoint_js_last_time, wait_timeout)
+        self.__raise_on_not_received(self.__setpoint_js_last_time)
         return (numpy.array(self.__setpoint_js_data.effort),
                 self.__ral.to_sec(self.__setpoint_js_data))
 
@@ -360,7 +382,9 @@ class utils:
         self.__setpoint_cp_last_time = time.time_ns()
 
 
-    def __setpoint_cp(self):
+    def __setpoint_cp(self, wait_timeout=None):
+        self.__wait_for_received(lambda: self.__setpoint_cp_last_time, wait_timeout)
+        self.__raise_on_not_received(self.__setpoint_cp_last_time)
         return (msg_conv.FrameFromPoseMsg(self.__setpoint_cp_data.pose),
                 self.__ral.to_sec(self.__setpoint_cp_data))
 
@@ -390,28 +414,32 @@ class utils:
         self.__measured_js_last_time = time.time_ns()
 
 
-    def __measured_js(self): # -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, float]:
-        self.__raise_on_timeout(self.__measured_js_last_time)
+    def __measured_js(self, wait_timeout=None): # -> tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, float]:
+        self.__wait_for_received(lambda: self.__measured_js_last_time, wait_timeout)
+        self.__raise_on_not_received(self.__measured_js_last_time)
         return (numpy.array(self.__measured_js_data.position),
                 numpy.array(self.__measured_js_data.velocity),
                 numpy.array(self.__measured_js_data.effort),
                 self.__ral.to_sec(self.__measured_js_data))
 
 
-    def __measured_jp(self): # -> tuple[numpy.ndarray, float]:
-        self.__raise_on_timeout(self.__measured_js_last_time)
+    def __measured_jp(self, wait_timeout=None): # -> tuple[numpy.ndarray, float]:
+        self.__wait_for_received(lambda: self.__measured_js_last_time, wait_timeout)
+        self.__raise_on_not_received(self.__measured_js_last_time)
         return (numpy.array(self.__measured_js_data.position),
                 self.__ral.to_sec(self.__measured_js_data))
 
 
-    def __measured_jv(self): # -> tuple[numpy.ndarray, float]:
-        self.__raise_on_timeout(self.__measured_js_last_time)
+    def __measured_jv(self, wait_timeout=None): # -> tuple[numpy.ndarray, float]:
+        self.__wait_for_received(lambda: self.__measured_js_last_time, wait_timeout)
+        self.__raise_on_not_received(self.__measured_js_last_time)
         return (numpy.array(self.__measured_js_data.velocity),
                 self.__ral.to_sec(self.__measured_js_data))
 
 
-    def __measured_jf(self): # -> tuple[numpy.ndarray, float]:
-        self.__raise_on_timeout(self.__measured_js_last_time)
+    def __measured_jf(self, wait_timeout=None): # -> tuple[numpy.ndarray, float]:
+        self.__wait_for_received(lambda: self.__measured_js_last_time, wait_timeout)
+        self.__raise_on_not_received(self.__measured_js_last_time)
         return (numpy.array(self.__measured_js_data.effort),
                 self.__ral.to_sec(self.__measured_js_data))
 
@@ -443,8 +471,9 @@ class utils:
         self.__measured_cp_last_time = time.time_ns()
 
 
-    def __measured_cp(self):
-        self.__raise_on_timeout(self.__measured_cp_last_time)
+    def __measured_cp(self, wait_timeout=None):
+        self.__wait_for_received(lambda: self.__measured_cp_last_time, wait_timeout)
+        self.__raise_on_not_received(self.__measured_cp_last_time)
         return (msg_conv.FrameFromPoseMsg(self.__measured_cp_data.pose),
                 self.__ral.to_sec(self.__measured_cp_data))
 
@@ -474,8 +503,9 @@ class utils:
         self.__measured_cv_last_time = time.time_ns()
 
 
-    def __measured_cv(self): # -> tuple[numpy.ndarray, float]:
-        self.__raise_on_timeout(self.__measured_cv_last_time)
+    def __measured_cv(self, wait_timeout=None): # -> tuple[numpy.ndarray, float]:
+        self.__wait_for_received(lambda: self.__measured_cv_last_time, wait_timeout)
+        self.__raise_on_not_received(self.__measured_cv_last_time)
         return (msg_conv.ArrayFromTwistMsg(self.__measured_cv_data.twist),
                 self.__ral.to_sec(self.__measured_cv_data))
 
@@ -505,8 +535,9 @@ class utils:
         self.__measured_cf_last_time = time.time_ns()
 
 
-    def __measured_cf(self):
-        self.__raise_on_timeout(self.__measured_cf_last_time)
+    def __measured_cf(self, wait_timeout=None):
+        self.__wait_for_received(lambda: self.__measured_cf_last_time, wait_timeout)
+        self.__raise_on_not_received(self.__measured_cf_last_time)
         return (msg_conv.ArrayFromWrenchMsg(self.__measured_cf_data.wrench),
                 self.__ral.to_sec(self.__measured_cf_data))
 
@@ -534,13 +565,15 @@ class utils:
     def __jacobian_cb(self, msg) -> None:
         self.__jacobian_data = msg
         self.__jacobian_last_time = time.time_ns()
+        self.__jacobian_received = self.__ral.now()
 
 
-    def __jacobian(self):
-        print('todo, add valid/timeout')
+    def __jacobian(self, wait_timeout=None):
+        self.__wait_for_received(lambda: self.__jacobian_last_time, wait_timeout)
+        self.__raise_on_not_received(self.__jacobian_last_time)
         jacobian = numpy.asarray(self.__jacobian_data.data)
         jacobian.shape = self.__jacobian_data.layout.dim[0].size, self.__jacobian_data.layout.dim[1].size
-        return jacobian
+        return jacobian, self.__jacobian_received
 
 
     def add_jacobian(self) -> None:

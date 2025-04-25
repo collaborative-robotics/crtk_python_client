@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.10)
+cmake_minimum_required (VERSION 3.16)
 project (crtk_python_client VERSION 1.3.1)
 
 # first test for ROS1

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#! /usr/bin/env python3
 
 # Author: Anton Deguet
 # Date: 2018-09-29
@@ -18,14 +18,8 @@
 
 import argparse
 import crtk
-import PyKDL
 import std_msgs.msg
 import sys
-
-
-if sys.version_info.major < 3:
-    input = raw_input
-
 
 class crtk_haptic_example:
     class Subframe:
@@ -47,7 +41,6 @@ class crtk_haptic_example:
 
         # populate this class with all the ROS topics we need
         self.crtk_utils = crtk.utils(self, ral)
-        self.crtk_utils.add_operating_state()
         self.crtk_utils.add_measured_cp()
         self.crtk_utils.add_measured_cv()
 
@@ -67,14 +60,6 @@ class crtk_haptic_example:
     def run(self):
         self.ral.check_connections()
 
-        if not self.enable(30):
-            print('Unable to enable the device, make sure it is connected.')
-            return
-
-        if not self.home(30):
-            print('Unable to home the device, make sure it is connected.')
-            return
-
         if self.body is not None:
             self.body.set_cf_orientation_absolute()
 
@@ -90,7 +75,6 @@ class crtk_haptic_example:
             answer = input('Enter your choice and [enter] to continue\n')
             if answer == 'q':
                 self.running = False
-                self.disable()
             elif answer == 'p':
                 self.run_print()
             elif answer == 'b':
@@ -102,8 +86,11 @@ class crtk_haptic_example:
 
     # print current position
     def run_print(self):
-        print(self.measured_cp())
-        print(self.measured_cv())
+        pose, timestamp = self.measured_cp()
+        velocity, timestamp = self.measured_cv()
+        print(f"Position: {pose.p}")
+        print(f"Orientation:\n{pose.M}")
+        print(f"Velocity: {velocity}")
 
     # virtual box
     def run_box(self):
@@ -111,15 +98,15 @@ class crtk_haptic_example:
         p_gain = -500.0
 
         # save current position
-        center = PyKDL.Frame()
-        center.p = self.measured_cp().p
+        center, timestamp = self.measured_cp()
 
         sleep_rate = self.ral.create_rate(self.rate)
         for i in range(self.samples):
             wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             # foreach d dimension x, y, z
+            position, _ = self.measured_cp()
             for d in range(3):
-                distance = self.measured_cp().p[d] - center.p[d]
+                distance = position.p[d] - center.p[d]
                 if (distance > dim):
                     wrench[d] = p_gain * (distance - dim)
                 elif  (distance < -dim):
@@ -132,13 +119,14 @@ class crtk_haptic_example:
 
     # viscosity
     def run_viscosity(self):
-        d_gain = -10.0
+        d_gain = -40.0
         sleep_rate = self.ral.create_rate(self.rate)
         for i in range(self.samples):
             wrench = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             # foreach d dimension x, y, z
             for d in range(3):
-                wrench[d] = d_gain * self.measured_cv()[d]
+                velocity, _ = self.measured_cv()
+                wrench[d] = d_gain * velocity[d]
             self.servo_cf(wrench)
             sleep_rate.sleep()
 

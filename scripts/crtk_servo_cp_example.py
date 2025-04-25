@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#! /usr/bin/env python3
 
 # Author: Anton Deguet
 # Created on: 2015-02-22
@@ -7,15 +7,16 @@
 # Released under MIT License
 
 # Start a single arm using
-# > rosrun dvrk_robot dvrk_console_json -j <console-file>
+# > ros2 run dvrk_robot dvrk_console_json -j <console-file>
+
+# Make sure to enable/home the robot if needed
 
 # To communicate with the arm using ROS topics, see the python based example dvrk_arm_test.py:
-# > rosrun crtk_python_client crtk_servo_cp_example.py <arm-name>
+# > ros2 run crtk_python_client crtk_servo_cp_example.py <arm-name>
 
 import argparse
 import crtk
 import math
-import PyKDL
 import sys
 import time
 
@@ -35,14 +36,14 @@ class crtk_servo_cp_example:
 
     def run(self):
         self.ral.check_connections()
-        start, ts = self.setpoint_cp()
+        start, ts = self.setpoint_cp(wait_timeout=1.0)
         while ts == 0:
             start, ts = self.setpoint_cp()
             time.sleep(0.01)
             print('waiting for data')
 
         goal, _ = self.setpoint_cp()
-        amplitude = 0.005 # 1 centimeter total
+        amplitude = 0.02 # 2 centimeter total
 
         sleep_rate = self.ral.create_rate(self.rate)
         for i in range(self.samples):
