@@ -1,9 +1,9 @@
-#!/usr/bin/env python
+#! /usr/bin/env python3
 
 # Author: Anton Deguet
 # Date: 2018-09-29
 #
-# Copyright (c) 2018-2021 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
+# Copyright (c) 2018-2025 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
 # Released under MIT License
 
 # Start your crtk compatible device first!
@@ -13,8 +13,12 @@
 # Phantom Omni example:
 # > rosrun sensable_phantom_ros sensable_phantom -j sawSensablePhantomRight.json
 
+# Make sure to enable/home the robot if needed
+
 # To communicate with the device using ROS topics, see the python based example:
 # > rosrun crtk_python_client crtk_teleop_example <master device namespace> <puppet device namespace>
+
+# Note: for a dVRK teleop example, see dvrk_python/scripts/dvrk_teleoperation.py
 
 import argparse
 import crtk
@@ -22,26 +26,19 @@ import math
 import PyKDL
 import sys
 
-
-if sys.version_info.major < 3:
-    input = raw_input
-
-
-# example of application using device.py
 class crtk_teleop_example:
+    """Example of simple teleop using CRTK"""
 
     class Master:
         def __init__(self, ral):
             # populate master with the ROS topics we need
             self.crtk = crtk.utils(self, ral)
-            self.crtk.add_operating_state()
             self.crtk.add_measured_cp()
 
     class Puppet:
         def __init__(self, ral):
             # populate puppet with the ROS topics we need
             self.crtk = crtk.utils(self, ral)
-            self.crtk.add_operating_state()
             self.crtk.add_setpoint_cp()
             self.crtk.add_servo_cp()
 
@@ -57,6 +54,7 @@ class crtk_teleop_example:
             self.crtk.add_servo_jp()
 
     def __init__(self, ral, master_namespace, puppet_namespace, gripper_namespace, jaw_namespace):
+        self.ral = ral
         self.master = self.Master(ral.create_child(master_namespace))
         self.puppet = self.Puppet(ral.create_child(puppet_namespace))
         self.has_gripper = False
@@ -66,45 +64,10 @@ class crtk_teleop_example:
             self.gripper = self.Gripper(ral.create_child(gripper_namespace))
             self.jaw = self.Jaw(ral.create_child(jaw_namespace))
 
-        self.duration = 10 # seconds
         self.rate = 500    # aiming for 500 Hz
-        self.sleep_rate = ral.create_rate(self.rate)
-        self.samples = self.duration * self.rate
-
-    # main loop
-    def run(self):
-        if not self.master.enable(5.0):
-            print("Unable to enable the master device, make sure it is connected.")
-            return
-        if not self.puppet.enable(5.0):
-            print("Unable to enable the puppet device, make sure it is connected.")
-            return
-
-        self.running = True
-        while (self.running):
-            print ('\n- q: quit\n- p: print position, velocity\n- t: position based teleop (10s)')
-            answer = input('Enter your choice and [enter] to continue\n')
-            if answer == 'q':
-                self.running = False
-                self.master.disable()
-                self.puppet.disable()
-            elif answer == 'p':
-                self.run_print()
-            elif answer == 't':
-                self.run_teleop()
-            else:
-                print('Invalid choice\n')
-
-    # print positions
-    def run_print(self):
-        print('master')
-        print(self.master.measured_cp().p)
-        print('puppet')
-        print(self.puppet.setpoint_cp().p)
 
     # position based teleop
-    def run_teleop(self):
-
+    def run(self):
         # registration between master and puppet.  Ideally we don't
         # use this, the devices should be able to set a base frame
         registration_rotation = PyKDL.Frame()
@@ -117,10 +80,11 @@ class crtk_teleop_example:
         registration_rotation.M.DoRotX(math.pi / 2.0)
 
         # scale (should be using ros::param)
-        scale = 0.5
+        scale = 0.1
         # record where we started, only positions
-        start_master = PyKDL.Frame(registration_rotation.Inverse() * self.master.measured_cp())
-        start_puppet = PyKDL.Frame(self.puppet.setpoint_cp())
+        m_cp, _ = self.master.measured_cp(wait_timeout=1.0)
+        start_master = PyKDL.Frame(registration_rotation.Inverse() * m_cp)
+        start_puppet, _ = self.puppet.setpoint_cp(wait_timeout=1.0)
 
         # create the target goal for the puppet, use current orientation
         goal_puppet = PyKDL.Frame()
@@ -128,22 +92,26 @@ class crtk_teleop_example:
         # start only when gripper is close to jaw angle
         gripper_started = False
 
-        # loop
-        for i in range(self.samples):
+        run_rate = self.ral.create_rate(self.rate)
+        while not self.ral.is_shutdown():
             # current master in puppet orientation
-            current_master = PyKDL.Frame(registration_rotation.Inverse() * self.master.measured_cp())
+            m_cp, _ = self.master.measured_cp()
+            current_master = PyKDL.Frame(registration_rotation.Inverse() * m_cp)
             goal_puppet.p = start_puppet.p + scale * (current_master.p - start_master.p)
             goal_puppet.M = current_master.M * start_master.M.Inverse() * start_puppet.M # this is not working yet!
             self.puppet.servo_cp(goal_puppet)
             # gripper
             if (self.has_gripper):
                 if (gripper_started):
-                    self.jaw.servo_jp(self.gripper.measured_jp())
+                    g_jp, _ = self.gripper.measured_jp()
+                    self.jaw.servo_jp(g_jp)
                 else:
-                    if (abs(self.gripper.measured_jp()[0] - self.jaw.setpoint_jp()[0]) < math.radians(5.0)):
+                    g_jp, _ = self.gripper.measured_jp()
+                    j_jp, _ = self.jaw.setpoint_jp()
+                    if (abs(g_jp[0] - j_jp[0]) < math.radians(5.0)):
                         gripper_started = True
 
-            self.sleep_rate.sleep()
+            run_rate.sleep()
 
 
 def main():
@@ -153,13 +121,13 @@ def main():
     parser.add_argument('-g', '--gripper', type = str, default = '', help = 'absolute ROS namespace for (optional) master gripper')
     parser.add_argument('-j', '--jaw', type = str, default = '', help = 'absolute ROS namespace for (optional) puppet jaw')
     app_args = crtk.ral.parse_argv(sys.argv[1:]) # process and remove ROS args
-    args = parser.parse_args(app_args) 
+    args = parser.parse_args(app_args)
 
     example_name = type(crtk_teleop_example).__name__
     ral = crtk.ral(example_name)
-    
-    example = crtk_teleop_example(ral, args.master, args.puppet, args.gripper, args.jaw)
-    ral.spin_and_execute(example.run)
+
+    teleop = crtk_teleop_example(ral, args.master, args.puppet, args.gripper, args.jaw)
+    ral.spin_and_execute(teleop.run)
 
 if __name__ == '__main__':
     main()

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#! /usr/bin/env python3
 
 # Author: Anton Deguet
 # Created on: 2015-02-22
@@ -8,6 +8,8 @@
 
 # Start a single arm using
 # > rosrun dvrk_robot dvrk_console_json -j <console-file>
+
+# Make sure to enable/home the robot if needed
 
 # To communicate with the arm using ROS topics, see the python based example dvrk_arm_test.py:
 # > rosrun crtk_python_client crtk_servo_jp_example.py <arm-name>
@@ -25,7 +27,6 @@ class crtk_servo_jp_example:
 
         # populate this class with all the ROS topics we need
         self.crtk_utils = crtk.utils(self, ral)
-        self.crtk_utils.add_operating_state()
         self.crtk_utils.add_setpoint_js()
         self.crtk_utils.add_servo_jp()
 
@@ -35,17 +36,10 @@ class crtk_servo_jp_example:
     def run(self):
         self.ral.check_connections()
 
-        if not self.enable(30):
-            print("Unable to enable the device, make sure it is connected.")
-            return
-
-        if not self.home(30):
-            print('Unable to home the device, make sure it is connected.')
-            return
-
         # create a new goal starting with current position
-        start_jp = numpy.copy(self.setpoint_jp())
-        goal = numpy.copy(self.setpoint_jp())
+        setpoint, timestamp = self.setpoint_jp(wait_timeout=1.0)
+        start_jp = numpy.copy(setpoint)
+        goal = numpy.copy(setpoint)
         amplitude = math.radians(10.0) # +/- 10 degrees
 
         sleep_rate = self.ral.create_rate(self.rate)

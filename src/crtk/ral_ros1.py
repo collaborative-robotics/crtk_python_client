@@ -1,11 +1,11 @@
 #  Author(s):  Anton Deguet
 #  Created on: 2023-05-08
 #
-# Copyright (c) 2023 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
+# Copyright (c) 2023-2024 Johns Hopkins University, University of Washington, Worcester Polytechnic Institute
 # Released under MIT License
 
 import rospy
-
+import sys
 
 class ral:
     """RAL: ROS abstraction layer
@@ -82,11 +82,15 @@ class ral:
     def create_rate(self, rate_hz):
         return rospy.Rate(rate_hz)
 
+    def create_time(self):
+        return rospy.Time()
+
     def spin(self):
         pass # Not applicable in ROS 1
 
     def shutdown(self):
-        pass # Not applicable in ROS 1
+        # mimic the rclpy behavior
+        raise RuntimeError('crtk.ral.shutdown() has been called')
 
     def spin_and_execute(self, function, *arguments):
         function(*arguments)

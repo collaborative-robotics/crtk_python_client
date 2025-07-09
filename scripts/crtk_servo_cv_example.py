@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#! /usr/bin/env python3
 
 # Author: Hisashi Ishida, Anton Deguet
 # Created on: 2023-04-01
@@ -8,6 +8,8 @@
 
 # Start a single arm using
 # > rosrun dvrk_robot dvrk_console_json -j <console-file>
+
+# Make sure to enable/home the robot if needed
 
 # To communicate with the arm using ROS topics, see the python based example dvrk_arm_test.py:
 # > rosrun crtk_python_client crtk_servo_cv_example.py <arm-name>
@@ -24,7 +26,6 @@ class crtk_servo_cv_example:
 
         # populate this class with all the ROS topics we need
         self.crtk_utils = crtk.utils(self, ral)
-        self.crtk_utils.add_operating_state()
         self.crtk_utils.add_setpoint_cp()
         self.crtk_utils.add_servo_cv()
 
@@ -32,14 +33,6 @@ class crtk_servo_cv_example:
 
     def run(self):
         self.ral.check_connections()
-
-        if not self.enable(30):
-            print("Unable to enable the device, make sure it is connected.")
-            return
-
-        if not self.home(30):
-            print('Unable to home the device, make sure it is connected.')
-            return
 
         # create a new goal with constant speed
         vel = np.array([1e-3, 0.0, 0.0, 0.0, 0.0, 0.0]) # move 1 mm/sec along x direction
