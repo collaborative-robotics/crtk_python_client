@@ -21,6 +21,14 @@ class input_device:
         self.crtk_utils = crtk.utils(self, ral)
         self.crtk_utils.add_measured_cp()
 
+# there must be a better option
+def print_4x4(rotation_kdl):
+    print(f'[[{rotation_kdl[0, 0]}, {rotation_kdl[0, 1]}, {rotation_kdl[0, 2]}, 0.0],')
+    print(f' [{rotation_kdl[1, 0]}, {rotation_kdl[1, 1]}, {rotation_kdl[1, 2]}, 0.0],')
+    print(f' [{rotation_kdl[2, 0]}, {rotation_kdl[2, 1]}, {rotation_kdl[2, 2]}, 0.0],')
+    print( ' [0.0, 0.0, 0.0, 1.0]]')
+
+
 # extract ros arguments (e.g. __ns:= for namespace)
 argv = crtk.ral.parse_argv(sys.argv[1:]) # skip argv[0], script name
 
@@ -85,9 +93,9 @@ print(f'-> Norm of quaternion found {q_norm}\n')
 good_rotation = PyKDL.Rotation.Quaternion(qx, qy, qz, qw)
 
 print('-> Rotation:\n')
-print(good_rotation)
+print_4x4(good_rotation)
 
 print('-> Inverse:\n')
-print(good_rotation.Inverse())
+print_4x4(good_rotation.Inverse())
 
 ral.shutdown()
