@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.16)
-project (crtk_python_client VERSION 1.3.1)
+project (crtk_python_client VERSION 1.4.0)
 
 # first test for ROS1
 find_package (catkin QUIET
