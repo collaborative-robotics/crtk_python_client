@@ -1,6 +1,23 @@
 Change log
 ==========
 
+1.4.0 (2025-12-18)
+==================
+
+* crtk_simple_orientation_registration.py: print result as 4x4 json
+* Added simple orientation registration script for any device with measured_cp
+* Fix wait_for_busy last busy time check
+* bumped cmake minimum required to 3.16
+* Update CRTK examples for latest API updates
+* updated some examples
+* utils.py: using time.time_ns to detect timeout on message passing, it doesn't make sense to use the ros time
+* added create_time for RAL ROS1, commenented out some type hints for older python
+* utils: all methods return tuples, added some type hints
+* ral_ros2: added method to wrap executor.spin with try/except
+* ROS1 ral modified so shutdown throws an exception (like ROS2)
+* Using ral for duration
+* Now raises TimeoutError if messages are too old
+
 1.3.1 (2025-01-17)
 ==================
 
