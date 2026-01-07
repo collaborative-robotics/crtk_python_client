@@ -1,7 +1,7 @@
 Change log
 ==========
 
-1.4.0 (2025-12-18)
+1.4.0 (2026-01-07)
 ==================
 
 * crtk_simple_orientation_registration.py: print result as 4x4 json
