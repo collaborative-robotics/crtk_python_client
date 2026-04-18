@@ -85,6 +85,11 @@ class ral:
     def create_time(self):
         return rospy.Time()
 
+    def set_timestamp(self, msg):
+        if hasattr(msg, 'header'):
+            msg.header.stamp = self.now()
+        return msg
+
     def spin(self):
         pass # Not applicable in ROS 1
 

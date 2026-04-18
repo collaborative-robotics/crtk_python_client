@@ -118,6 +118,7 @@ class utils:
         # convert to ROS msg and publish
         msg = crtk_msgs.msg.StringStamped()
         msg.string = state
+        self.__ral.set_timestamp(msg)
         # publish and wait
         self.__state_command_publisher.publish(msg)
 
@@ -645,6 +646,7 @@ class utils:
         msg = sensor_msgs.msg.JointState()
         msg.position = setpoint_p.tolist()
         msg.velocity = setpoint_v.tolist()
+        self.__ral.set_timestamp(msg)
         self.__servo_jp_publisher.publish(msg)
 
 
@@ -668,6 +670,7 @@ class utils:
         # convert to ROS msg and publish
         msg = sensor_msgs.msg.JointState()
         msg.position = setpoint.tolist()
+        self.__ral.set_timestamp(msg)
         self.__servo_jr_publisher.publish(msg)
 
     def add_servo_jr(self) -> None:
@@ -690,6 +693,7 @@ class utils:
         # convert to ROS msg and publish
         msg = geometry_msgs.msg.PoseStamped()
         msg.pose = msg_conv.FrameToPoseMsg(setpoint)
+        self.__ral.set_timestamp(msg)
         self.__servo_cp_publisher.publish(msg)
 
     def add_servo_cp(self) -> None:
@@ -712,6 +716,7 @@ class utils:
         # convert to ROS msg and publish
         msg = sensor_msgs.msg.JointState()
         msg.effort = setpoint.tolist()
+        self.__ral.set_timestamp(msg)
         self.__servo_jf_publisher.publish(msg)
 
     def add_servo_jf(self):
@@ -734,6 +739,7 @@ class utils:
         # convert to ROS msg and publish
         msg = geometry_msgs.msg.WrenchStamped()
         msg.wrench = msg_conv.ArrayToWrenchMsg(setpoint)
+        self.__ral.set_timestamp(msg)
         self.__servo_cf_publisher.publish(msg)
 
     def add_servo_cf(self) -> None:
@@ -756,6 +762,7 @@ class utils:
         # convert to ROS msg and publish
         msg = geometry_msgs.msg.TwistStamped()
         msg.twist = msg_conv.ArrayToTwistMsg(setpoint)
+        self.__ral.set_timestamp(msg)
         self.__servo_cv_publisher.publish(msg)
 
     def add_servo_cv(self):
@@ -778,6 +785,7 @@ class utils:
         # convert to ROS msg and publish
         msg = sensor_msgs.msg.JointState()
         msg.position = setpoint.tolist()
+        self.__ral.set_timestamp(msg)
         handle = crtk.wait_move_handle(self.__operating_state_instance, self.__ral)
         self.__move_jp_publisher.publish(msg)
         return handle
@@ -802,6 +810,7 @@ class utils:
         # convert to ROS msg and publish
         msg = sensor_msgs.msg.JointState()
         msg.position = setpoint.tolist()
+        self.__ral.set_timestamp(msg)
         handle = crtk.wait_move_handle(self.__operating_state_instance, self.__ral)
         self.__move_jr_publisher.publish(msg)
         return handle
@@ -826,6 +835,7 @@ class utils:
         # convert to ROS msg and publish
         msg = geometry_msgs.msg.PoseStamped()
         msg.pose = msg_conv.FrameToPoseMsg(goal)
+        self.__ral.set_timestamp(msg)
         handle = crtk.wait_move_handle(self.__operating_state_instance, self.__ral)
         self.__move_cp_publisher.publish(msg)
         return handle

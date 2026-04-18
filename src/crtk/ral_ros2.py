@@ -105,6 +105,11 @@ class ral:
         return rclpy.time.Time(seconds = 0.0,
                                clock_type = self._node.get_clock().clock_type)
 
+    def set_timestamp(self, msg):
+        if hasattr(msg, 'header'):
+            msg.header.stamp = self.now().to_msg()
+        return msg
+
     def _try_spin(self):
         try:
             executor = rclpy.executors.SingleThreadedExecutor()
