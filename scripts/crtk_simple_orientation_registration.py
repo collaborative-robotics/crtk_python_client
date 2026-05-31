@@ -7,6 +7,7 @@
 # Released under MIT License
 
 import argparse
+import json
 import sys
 import time
 import crtk
@@ -21,12 +22,23 @@ class input_device:
         self.crtk_utils = crtk.utils(self, ral)
         self.crtk_utils.add_measured_cp()
 
-# there must be a better option
-def print_4x4(rotation_kdl):
-    print(f'[[{rotation_kdl[0, 0]}, {rotation_kdl[0, 1]}, {rotation_kdl[0, 2]}, 0.0],')
-    print(f' [{rotation_kdl[1, 0]}, {rotation_kdl[1, 1]}, {rotation_kdl[1, 2]}, 0.0],')
-    print(f' [{rotation_kdl[2, 0]}, {rotation_kdl[2, 1]}, {rotation_kdl[2, 2]}, 0.0],')
-    print( ' [0.0, 0.0, 0.0, 1.0]]')
+def rotation_to_4x4(rotation_kdl):
+    return [[rotation_kdl[0, 0], rotation_kdl[0, 1], rotation_kdl[0, 2], 0.0],
+            [rotation_kdl[1, 0], rotation_kdl[1, 1], rotation_kdl[1, 2], 0.0],
+            [rotation_kdl[2, 0], rotation_kdl[2, 1], rotation_kdl[2, 2], 0.0],
+            [0.0, 0.0, 0.0, 1.0]]
+
+
+def angle_degrees_between(v1, v2):
+    dot = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]
+    dot = max(-1.0, min(1.0, dot))
+    return math.degrees(math.acos(dot))
+
+
+def print_json_block(name, value):
+    print(f'-> {name}:\n')
+    print(json.dumps(value, indent = 4))
+    print('')
 
 
 # extract ros arguments (e.g. __ns:= for namespace)
@@ -36,6 +48,8 @@ argv = crtk.ral.parse_argv(sys.argv[1:]) # skip argv[0], script name
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--device', type = str, required = True,
                     help = 'name of the CRTK compatible device.  The device must provide measured_cp')
+parser.add_argument('-r', '--reference-frame', type = str, default = 'user',
+                    help = 'reference frame name to use in the dVRK base_frame snippet')
 
 args = parser.parse_args(argv)
 
@@ -85,17 +99,34 @@ y.Normalize()
 z = z2.p - z1.p
 z.Normalize()
 
+xy_angle = angle_degrees_between(x, y)
+xz_angle = angle_degrees_between(x, z)
+yz_angle = angle_degrees_between(y, z)
+
+xCrossY = x * y  # PyKDL cross product
+handedness = xCrossY[0] * z[0] + xCrossY[1] * z[1] + xCrossY[2] * z[2]  # (x×y)·z
+
+print('-> Orthogonality metrics\n')
+print(f'   angle(x, y) = {xy_angle:0.2f} deg, error to 90 = {abs(xy_angle - 90.0):0.2f} deg')
+print(f'   angle(x, z) = {xz_angle:0.2f} deg, error to 90 = {abs(xz_angle - 90.0):0.2f} deg')
+print(f'   angle(y, z) = {yz_angle:0.2f} deg, error to 90 = {abs(yz_angle - 90.0):0.2f} deg')
+print(f'   handedness (x×y)·z = {handedness:+.4f} (should be close to +1.0 for a right-handed frame)\n')
+
 bad_rotation = PyKDL.Rotation(x, y, z)
-q = bad_rotation.GetQuaternion()
-qx = q[1]; qy = q[2]; qz = q[3]; qw = q[0]
+qx, qy, qz, qw = bad_rotation.GetQuaternion()  # returns (x, y, z, w)
 q_norm = math.sqrt(qx**2 + qy**2 + qz**2 + qw**2)
 print(f'-> Norm of quaternion found {q_norm}\n')
 good_rotation = PyKDL.Rotation.Quaternion(qx, qy, qz, qw)
+base_frame_transform = rotation_to_4x4(good_rotation.Inverse())
+base_frame_snippet = {
+    'base_frame': {
+        'reference_frame': args.reference_frame,
+        'transform': base_frame_transform
+    }
+}
 
-print('-> Rotation:\n')
-print_4x4(good_rotation)
-
-print('-> Inverse:\n')
-print_4x4(good_rotation.Inverse())
+print_json_block('Rotation', rotation_to_4x4(good_rotation))
+print_json_block('Inverse', base_frame_transform)
+print_json_block('dVRK base_frame snippet', base_frame_snippet)
 
 ral.shutdown()
