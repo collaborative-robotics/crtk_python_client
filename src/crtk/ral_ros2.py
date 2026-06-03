@@ -22,15 +22,44 @@ class ral:
 
     @staticmethod
     def ros_version():
+        """Return the ROS version this RAL implementation targets.
+
+        :return: Always returns ``2`` for the ROS 2 implementation.
+        :rtype: int
+        """
         return 2
 
     @staticmethod
     def parse_argv(argv):
+        """Initialise rclpy and strip ROS-specific arguments from an argument list.
+
+        Calls ``rclpy.init`` then uses ``rclpy.utilities.remove_ros_args``
+        to filter out ROS remapping or parameter arguments so the remaining
+        list can be passed to application-level argument parsers.
+
+        :param argv: Argument list (e.g. ``sys.argv``).
+        :return: Argument list with ROS arguments removed.
+        :rtype: list[str]
+        """
         # strip ros arguments
         rclpy.init(args = argv)
         return rclpy.utilities.remove_ros_args(argv)
 
     def __init__(self, node_name, namespace = '', node = None):
+        """Initialize the ROS 2 abstraction layer.
+
+        If *node* is ``None`` a new rclpy node is created (initialising
+        rclpy if not already done).  Passing an existing *node* object
+        allows sharing a node across multiple ``ral`` instances.
+
+        :param node_name: Name used when creating the ROS 2 node.
+        :type node_name: str
+        :param namespace: Optional topic namespace prefix.  Leading and
+            trailing slashes are stripped automatically.
+        :type namespace: str
+        :param node: Existing rclpy ``Node`` to reuse.  When provided
+            node creation is skipped.
+        """
         self._node_name = node_name
         self._namespace = namespace.strip('/')
 
@@ -61,12 +90,30 @@ class ral:
             self._node.destroy_subscription(sub)
 
     def node_name(self):
+        """Return the node name supplied at construction time.
+
+        :rtype: str
+        """
         return self._node_name
 
     def namespace(self):
+        """Return the current topic namespace (without leading/trailing slashes).
+
+        :rtype: str
+        """
         return self._namespace
 
     def create_child(self, child_namespace):
+        """Create a child ``ral`` object scoped to a sub-namespace.
+
+        The child shares the same rclpy ``Node`` but all its topics are
+        automatically prefixed with ``<parent_namespace>/<child_namespace>``.
+
+        :param child_namespace: The sub-namespace name.
+        :type child_namespace: str
+        :return: New child ``ral`` instance.
+        :raises RuntimeError: If a child with *child_namespace* already exists.
+        """
         if child_namespace in self._children:
             err_msg = 'ral object already has child "{}"!'.format(child_namespace)
             raise RuntimeError(err_msg)
@@ -77,9 +124,23 @@ class ral:
         return child
 
     def now(self):
+        """Return the current ROS 2 time from the node's clock.
+
+        :return: Current ROS 2 time.
+        :rtype: rclpy.time.Time
+        """
         return self._node.get_clock().now()
 
     def get_timestamp(self, t):
+        """Extract an ``rclpy.time.Time`` stamp from a message or header.
+
+        Accepts a stamped message, a ``Header``, or a plain time value
+        and always returns an ``rclpy.time.Time`` object.
+
+        :param t: Object to extract the stamp from.
+        :return: The extracted time stamp.
+        :rtype: rclpy.time.Time
+        """
         if hasattr(t, 'header'):
             t = t.header
         if hasattr(t, 'stamp'):
@@ -91,21 +152,57 @@ class ral:
             return t
 
     def to_sec(self, t):
+        """Convert a ROS 2 time or stamped message to seconds (float).
+
+        :param t: An ``rclpy.time.Time``, stamped message, or ``Header``.
+        :return: Time in seconds.
+        :rtype: float
+        """
         t = self.get_timestamp(t)
         return float(t.nanoseconds)/1e9
 
     def create_duration(self, d):
+        """Create an ``rclpy.time.Duration`` from a number of seconds.
+
+        :param d: Duration in seconds.
+        :type d: float
+        :return: Corresponding ROS 2 duration.
+        :rtype: rclpy.time.Duration
+        """
         return rclpy.time.Duration(seconds = d)
 
     def create_rate(self, rate_hz):
+        """Create a ROS 2 ``Rate`` object for loop-rate control.
+
+        :param rate_hz: Desired loop rate in Hz.
+        :type rate_hz: float
+        :return: Rate object whose ``.sleep()`` keeps the desired frequency.
+        """
         return self._node.create_rate(frequency = rate_hz,
                                       clock = self._node.get_clock())
 
     def create_time(self):
+        """Create a zero-initialised ROS 2 ``Time`` object.
+
+        The clock type matches the node's clock so the value can be
+        compared against times returned by :meth:`now`.
+
+        :return: Zero-initialised ROS 2 time.
+        :rtype: rclpy.time.Time
+        """
         return rclpy.time.Time(seconds = 0.0,
                                clock_type = self._node.get_clock().clock_type)
 
     def set_timestamp(self, msg):
+        """Stamp a ROS 2 message with the current time.
+
+        Sets ``msg.header.stamp`` to ``now().to_msg()`` if the message
+        has a ``header`` attribute; otherwise the message is returned
+        unchanged.
+
+        :param msg: ROS 2 message to stamp.
+        :return: The same message with the header stamp updated.
+        """
         if hasattr(msg, 'header'):
             msg.header.stamp = self.now().to_msg()
         return msg
@@ -119,6 +216,12 @@ class ral:
             pass
         
     def spin(self):
+        """Start the rclpy executor in a background daemon thread.
+
+        Uses a ``SingleThreadedExecutor`` so that subscriber callbacks
+        are dispatched from a dedicated thread.  Calling ``spin()`` a
+        second time on the same instance is a no-op.
+        """
         if self._executor_thread != None:
             return
         self._executor_thread = threading.Thread(target = self._try_spin,
@@ -126,6 +229,10 @@ class ral:
         self._executor_thread.start()
 
     def shutdown(self):
+        """Shut down rclpy and join the executor thread (if running).
+
+        Safe to call even if the executor has not been started.
+        """
         if rclpy.ok():
             rclpy.shutdown()
 
@@ -134,6 +241,15 @@ class ral:
             self._executor_thread = None
 
     def spin_and_execute(self, function, *arguments):
+        """Start the executor, run *function*, then shut down.
+
+        Starts the background executor thread via :meth:`spin`, invokes
+        *function* with *arguments*, and calls :meth:`shutdown` when
+        *function* returns or the user presses Ctrl-C.
+
+        :param function: Callable to invoke.
+        :param arguments: Positional arguments forwarded to *function*.
+        """
         self.spin()
         try:
             function(*arguments)
@@ -142,9 +258,17 @@ class ral:
         self.shutdown()
 
     def on_shutdown(self, callback):
+        """Register a callback to be invoked when rclpy shuts down.
+
+        :param callback: Zero-argument callable invoked at shutdown.
+        """
         rclpy.get_default_context().on_shutdown(callback)
 
     def is_shutdown(self):
+        """Return ``True`` if rclpy has been shut down.
+
+        :rtype: bool
+        """
         return not rclpy.ok()
 
     def _add_namespace_to(self, name):
@@ -153,6 +277,23 @@ class ral:
         return qualified_name
 
     def publisher(self, topic, msg_type, queue_size = 10, latch = False, *args, **kwargs):
+        """Create a ROS 2 publisher and register it with this RAL instance.
+
+        The topic name is automatically prefixed with the RAL namespace.
+        When *latch* is ``True`` the QoS durability is set to
+        ``TRANSIENT_LOCAL`` so that the last *queue_size* messages are
+        re-sent to late-joining subscribers.
+
+        :param topic: Topic name (relative to the namespace).
+        :type topic: str
+        :param msg_type: ROS 2 message type class.
+        :param queue_size: Publisher queue depth.  Defaults to 10.
+        :type queue_size: int
+        :param latch: If ``True`` enables transient-local durability.
+            Defaults to ``False``.
+        :type latch: bool
+        :return: The created rclpy publisher.
+        """
         history = rclpy.qos.HistoryPolicy.KEEP_LAST
         qos = rclpy.qos.QoSProfile(depth = queue_size, history = history)
         if latch:
@@ -163,6 +304,24 @@ class ral:
         return pub
 
     def subscriber(self, topic, msg_type, callback, queue_size=10, latch = False, *args, **kwargs):
+        """Create a ROS 2 subscriber and register it with this RAL instance.
+
+        The topic name is automatically prefixed with the RAL namespace.
+        When *latch* is ``True`` the QoS durability is set to
+        ``TRANSIENT_LOCAL`` so that previously published messages are
+        received immediately upon subscription.
+
+        :param topic: Topic name (relative to the namespace).
+        :type topic: str
+        :param msg_type: ROS 2 message type class.
+        :param callback: Message-received callback.
+        :param queue_size: Subscriber queue depth.  Defaults to 10.
+        :type queue_size: int
+        :param latch: If ``True`` enables transient-local durability.
+            Defaults to ``False``.
+        :type latch: bool
+        :return: The created rclpy subscription.
+        """
         history = rclpy.qos.HistoryPolicy.KEEP_LAST
         qos = rclpy.qos.QoSProfile(depth = queue_size, history = history)
         if latch:
@@ -174,6 +333,17 @@ class ral:
         return sub
 
     def service_client(self, name, srv_type):
+        """Create a ROS 2 service client and register it with this RAL instance.
+
+        A ``__call__`` attribute pointing to ``client.call`` is added
+        when the client is not directly callable, ensuring a uniform
+        call interface across ROS versions.
+
+        :param name: Service name (relative to the namespace).
+        :type name: str
+        :param srv_type: ROS 2 service type class.
+        :return: The created rclpy service client.
+        """
         client = self._node.create_client(srv_type, self._add_namespace_to(name))
         if not hasattr(client, '__call__'):
             client.__call__ = client.call
@@ -181,6 +351,12 @@ class ral:
         return client
 
     def get_topic_name(self, pubsub):
+        """Return the fully-qualified topic name for a publisher or subscriber.
+
+        :param pubsub: An rclpy publisher or subscription instance.
+        :return: The topic name string.
+        :rtype: str
+        """
         return pubsub.topic_name
 
     def _check_connections(self, start_time, timeout_duration, check_children):

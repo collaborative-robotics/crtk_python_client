@@ -41,6 +41,22 @@ class utils:
                  ral: crtk.ral,
                  connection_timeout:float = 1.0,
                  operating_state_instance = None) -> None:
+        """Initialize the CRTK utility helper.
+
+        Sets up the RAL (ROS Abstraction Layer) connection and registers a
+        shutdown callback.  Call the ``add_*`` methods afterwards to
+        inject the desired CRTK methods into ``class_instance``.
+
+        :param class_instance: The Python object that will be populated
+            with CRTK-compatible methods.
+        :param ral: RAL object for the device namespace (ROS 1 or ROS 2).
+        :param connection_timeout: Time in seconds after which a data
+            source is considered disconnected.  Defaults to 1.0.
+        :param operating_state_instance: Optional external object that
+            owns the CRTK operating-state interface.  When ``None`` the
+            ``class_instance`` itself is used once
+            :meth:`add_operating_state` is called.
+        """
         self.__class_instance = class_instance
         self.__operating_state_instance = operating_state_instance
         self.__ral = ral
@@ -248,6 +264,26 @@ class utils:
 
 
     def add_operating_state(self) -> None:
+        """Inject CRTK operating-state methods into the class instance.
+
+        Subscribes to the ``operating_state`` topic and publishes to the
+        ``state_command`` topic.  After this call the following attributes
+        are available on the class instance:
+
+        * ``operating_state()`` — current state string
+        * ``wait_for_operating_state(expected_state, timeout)`` — block until
+          the device reaches *expected_state* or *timeout* expires
+        * ``state_command(state)`` — send a raw state-command string
+        * ``is_enabled()`` / ``enable(timeout)`` — query or request ENABLED state
+        * ``is_disabled()`` / ``disable(timeout)`` — query or request DISABLED state
+        * ``home(timeout)`` / ``unhome(timeout)`` — request homing transitions
+        * ``is_homed()`` — query homed flag
+        * ``is_busy(start_time, extra)`` — query busy flag
+        * ``wait_for_busy(is_busy, start_time, timeout)`` — block until
+          the busy flag matches *is_busy*
+
+        :raises RuntimeWarning: If ``operating_state`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'operating_state'):
@@ -356,6 +392,22 @@ class utils:
 
 
     def add_setpoint_js(self) -> None:
+        """Inject CRTK setpoint joint-state methods into the class instance.
+
+        Subscribes to the ``setpoint_js`` topic.  After this call the
+        following attributes are available on the class instance:
+
+        * ``setpoint_js(wait_timeout)`` — returns ``(position, velocity, effort, timestamp)``
+          as ``(numpy.ndarray, numpy.ndarray, numpy.ndarray, float)``
+        * ``setpoint_jp(wait_timeout)`` — returns ``(position, timestamp)``
+        * ``setpoint_jv(wait_timeout)`` — returns ``(velocity, timestamp)``
+        * ``setpoint_jf(wait_timeout)`` — returns ``(effort, timestamp)``
+
+        All getters accept an optional *wait_timeout* (seconds) that
+        blocks until the first message has been received.
+
+        :raises RuntimeWarning: If ``setpoint_js`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'setpoint_js'):
@@ -391,6 +443,15 @@ class utils:
 
 
     def add_setpoint_cp(self) -> None:
+        """Inject CRTK setpoint Cartesian-pose method into the class instance.
+
+        Subscribes to the ``setpoint_cp`` topic.  After this call the
+        following attribute is available on the class instance:
+
+        * ``setpoint_cp(wait_timeout)`` — returns ``(PyKDL.Frame, timestamp)``
+
+        :raises RuntimeWarning: If ``setpoint_cp`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'setpoint_cp'):
@@ -446,6 +507,22 @@ class utils:
 
 
     def add_measured_js(self) -> None:
+        """Inject CRTK measured joint-state methods into the class instance.
+
+        Subscribes to the ``measured_js`` topic.  After this call the
+        following attributes are available on the class instance:
+
+        * ``measured_js(wait_timeout)`` — returns ``(position, velocity, effort, timestamp)``
+          as ``(numpy.ndarray, numpy.ndarray, numpy.ndarray, float)``
+        * ``measured_jp(wait_timeout)`` — returns ``(position, timestamp)``
+        * ``measured_jv(wait_timeout)`` — returns ``(velocity, timestamp)``
+        * ``measured_jf(wait_timeout)`` — returns ``(effort, timestamp)``
+
+        All getters accept an optional *wait_timeout* (seconds) that
+        blocks until the first message has been received.
+
+        :raises RuntimeWarning: If ``measured_js`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'measured_js'):
@@ -480,6 +557,15 @@ class utils:
 
 
     def add_measured_cp(self) -> None:
+        """Inject CRTK measured Cartesian-pose method into the class instance.
+
+        Subscribes to the ``measured_cp`` topic.  After this call the
+        following attribute is available on the class instance:
+
+        * ``measured_cp(wait_timeout)`` — returns ``(PyKDL.Frame, timestamp)``
+
+        :raises RuntimeWarning: If ``measured_cp`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'measured_cp'):
@@ -512,6 +598,16 @@ class utils:
 
 
     def add_measured_cv(self) -> None:
+        """Inject CRTK measured Cartesian-velocity method into the class instance.
+
+        Subscribes to the ``measured_cv`` topic.  After this call the
+        following attribute is available on the class instance:
+
+        * ``measured_cv(wait_timeout)`` — returns ``(numpy.ndarray, timestamp)``
+          where the array contains ``[vx, vy, vz, wx, wy, wz]``
+
+        :raises RuntimeWarning: If ``measured_cv`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'measured_cv'):
@@ -544,6 +640,16 @@ class utils:
 
 
     def add_measured_cf(self) -> None:
+        """Inject CRTK measured Cartesian-force/wrench method into the class instance.
+
+        Subscribes to the ``measured_cf`` topic.  After this call the
+        following attribute is available on the class instance:
+
+        * ``measured_cf(wait_timeout)`` — returns ``(numpy.ndarray, timestamp)``
+          where the array contains ``[fx, fy, fz, tx, ty, tz]``
+
+        :raises RuntimeWarning: If ``measured_cf`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'measured_cf'):
@@ -578,6 +684,17 @@ class utils:
 
 
     def add_jacobian(self) -> None:
+        """Inject CRTK Jacobian method into the class instance.
+
+        Subscribes to the ``jacobian`` topic.  After this call the
+        following attribute is available on the class instance:
+
+        * ``jacobian(wait_timeout)`` — returns ``(numpy.ndarray, timestamp)``
+          where the array is a 2-D Jacobian matrix shaped
+          ``(layout.dim[0].size, layout.dim[1].size)``
+
+        :raises RuntimeWarning: If ``jacobian`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'jacobian'):
@@ -604,6 +721,16 @@ class utils:
 
 
     def add_hold(self) -> None:
+        """Inject CRTK hold command into the class instance.
+
+        Creates a publisher on the ``hold`` topic.  After this call the
+        following attribute is available on the class instance:
+
+        * ``hold()`` — publishes an empty message requesting the device to
+          hold its current position.
+
+        :raises RuntimeWarning: If ``hold`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'hold'):
@@ -626,6 +753,16 @@ class utils:
 
 
     def add_free(self) -> None:
+        """Inject CRTK free command into the class instance.
+
+        Creates a publisher on the ``free`` topic.  After this call the
+        following attribute is available on the class instance:
+
+        * ``free()`` — publishes an empty message requesting the device
+          to enter a gravity-compensated / compliant free mode.
+
+        :raises RuntimeWarning: If ``free`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'free'):
@@ -651,6 +788,18 @@ class utils:
 
 
     def add_servo_jp(self) -> None:
+        """Inject CRTK servo joint-position command into the class instance.
+
+        Creates a publisher on the ``servo_jp`` topic.  After this call
+        the following attribute is available on the class instance:
+
+        * ``servo_jp(setpoint_p, setpoint_v)`` — publish a joint-position
+          setpoint.  *setpoint_p* is a ``numpy.ndarray`` of positions;
+          the optional *setpoint_v* is a ``numpy.ndarray`` of velocity
+          feedforward values (default: empty array).
+
+        :raises RuntimeWarning: If ``servo_jp`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'servo_jp'):
@@ -674,6 +823,16 @@ class utils:
         self.__servo_jr_publisher.publish(msg)
 
     def add_servo_jr(self) -> None:
+        """Inject CRTK servo joint-position relative command into the class instance.
+
+        Creates a publisher on the ``servo_jr`` topic.  After this call
+        the following attribute is available on the class instance:
+
+        * ``servo_jr(setpoint)`` — publish a *relative* joint-position
+          setpoint as a ``numpy.ndarray``.
+
+        :raises RuntimeWarning: If ``servo_jr`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'servo_jr'):
@@ -697,6 +856,16 @@ class utils:
         self.__servo_cp_publisher.publish(msg)
 
     def add_servo_cp(self) -> None:
+        """Inject CRTK servo Cartesian-pose command into the class instance.
+
+        Creates a publisher on the ``servo_cp`` topic.  After this call
+        the following attribute is available on the class instance:
+
+        * ``servo_cp(setpoint)`` — publish a Cartesian-pose setpoint
+          as a ``PyKDL.Frame``.
+
+        :raises RuntimeWarning: If ``servo_cp`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'servo_cp'):
@@ -720,6 +889,16 @@ class utils:
         self.__servo_jf_publisher.publish(msg)
 
     def add_servo_jf(self):
+        """Inject CRTK servo joint-force/effort command into the class instance.
+
+        Creates a publisher on the ``servo_jf`` topic.  After this call
+        the following attribute is available on the class instance:
+
+        * ``servo_jf(setpoint)`` — publish a joint-effort setpoint
+          as a ``numpy.ndarray``.
+
+        :raises RuntimeWarning: If ``servo_jf`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'servo_jf'):
@@ -743,6 +922,16 @@ class utils:
         self.__servo_cf_publisher.publish(msg)
 
     def add_servo_cf(self) -> None:
+        """Inject CRTK servo Cartesian-force/wrench command into the class instance.
+
+        Creates a publisher on the ``servo_cf`` topic.  After this call
+        the following attribute is available on the class instance:
+
+        * ``servo_cf(setpoint)`` — publish a wrench setpoint as a
+          ``numpy.ndarray`` containing ``[fx, fy, fz, tx, ty, tz]``.
+
+        :raises RuntimeWarning: If ``servo_cf`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'servo_cf'):
@@ -766,6 +955,16 @@ class utils:
         self.__servo_cv_publisher.publish(msg)
 
     def add_servo_cv(self):
+        """Inject CRTK servo Cartesian-velocity command into the class instance.
+
+        Creates a publisher on the ``servo_cv`` topic.  After this call
+        the following attribute is available on the class instance:
+
+        * ``servo_cv(setpoint)`` — publish a twist setpoint as a
+          ``numpy.ndarray`` containing ``[vx, vy, vz, wx, wy, wz]``.
+
+        :raises RuntimeWarning: If ``servo_cv`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'servo_cv'):
@@ -791,6 +990,17 @@ class utils:
         return handle
 
     def add_move_jp(self) -> None:
+        """Inject CRTK blocking move joint-position command into the class instance.
+
+        Creates a publisher on the ``move_jp`` topic.  After this call
+        the following attribute is available on the class instance:
+
+        * ``move_jp(setpoint)`` — publish an absolute joint-position goal
+          (``numpy.ndarray``) and return a :class:`crtk.wait_move_handle`
+          that can be used to block until the motion completes.
+
+        :raises RuntimeWarning: If ``move_jp`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'move_jp'):
@@ -816,6 +1026,17 @@ class utils:
         return handle
 
     def add_move_jr(self):
+        """Inject CRTK blocking move joint-position relative command into the class instance.
+
+        Creates a publisher on the ``move_jr`` topic.  After this call
+        the following attribute is available on the class instance:
+
+        * ``move_jr(setpoint)`` — publish a *relative* joint-position goal
+          (``numpy.ndarray``) and return a :class:`crtk.wait_move_handle`
+          that can be used to block until the motion completes.
+
+        :raises RuntimeWarning: If ``move_jr`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'move_jr'):
@@ -841,6 +1062,17 @@ class utils:
         return handle
 
     def add_move_cp(self) -> None:
+        """Inject CRTK blocking move Cartesian-pose command into the class instance.
+
+        Creates a publisher on the ``move_cp`` topic.  After this call
+        the following attribute is available on the class instance:
+
+        * ``move_cp(goal)`` — publish a Cartesian-pose goal
+          (``PyKDL.Frame``) and return a :class:`crtk.wait_move_handle`
+          that can be used to block until the motion completes.
+
+        :raises RuntimeWarning: If ``move_cp`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'move_cp'):
@@ -872,6 +1104,19 @@ class utils:
                     response.message)
 
     def add_forward_kinematics(self) -> None:
+        """Inject CRTK forward-kinematics service client into the class instance.
+
+        Creates a service client for the ``/forward_kinematics`` service.
+        After this call the following attribute is available on the
+        class instance:
+
+        * ``forward_kinematics(jp, extra)`` — call the forward-kinematics
+          service with joint positions *jp* (``numpy.ndarray``) and
+          return the resulting ``PyKDL.Frame``.  When *extra* is truthy,
+          returns ``(PyKDL.Frame, result_code, message)``.
+
+        :raises RuntimeWarning: If ``forward_kinematics`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'forward_kinematics'):
@@ -901,6 +1146,21 @@ class utils:
                     response.message)
 
     def add_inverse_kinematics(self) -> None:
+        """Inject CRTK inverse-kinematics service client into the class instance.
+
+        Creates a service client for the ``/inverse_kinematics`` service.
+        After this call the following attribute is available on the
+        class instance:
+
+        * ``inverse_kinematics(jp, cp, extra)`` — call the
+          inverse-kinematics service with a hint joint-position
+          *jp* (``numpy.ndarray``) and a Cartesian goal *cp*
+          (``PyKDL.Frame``), returning the solution as a
+          ``numpy.ndarray``.  When *extra* is truthy, returns
+          ``(numpy.ndarray, result_code, message)``.
+
+        :raises RuntimeWarning: If ``inverse_kinematics`` has already been added.
+        """
         # throw a warning if this has alread been added to the class,
         # using the callback name to test
         if hasattr(self.__class_instance, 'inverse_kinematics'):
