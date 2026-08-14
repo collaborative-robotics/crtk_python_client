@@ -1,6 +1,17 @@
 Change log
 ==========
 
+1.5.0 (TBD)
+===========
+
+* New features:
+  * Publishers now provide timestamps for all published data.
+  * Added an interactive Cartesian jog script.
+* Bug fixes:
+  * Corrected quaternion handling in the simple orientation-registration script.
+* Documentation:
+  * Added comprehensive docstrings to the ROS 2 abstraction layer.
+
 1.4.0 (2026-01-07)
 ==================
 
