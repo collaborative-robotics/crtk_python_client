@@ -1,8 +1,8 @@
 Change log
 ==========
 
-1.5.0 (TBD)
-===========
+1.5.0 (2026-08-22)
+==================
 
 * New features:
   * Publishers now provide timestamps for all published data.
