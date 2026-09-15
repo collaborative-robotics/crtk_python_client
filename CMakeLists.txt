@@ -23,6 +23,12 @@ else (catkin_FOUND)
     install (PROGRAMS ${crtk_SCRIPTS}
       DESTINATION lib/${PROJECT_NAME})
 
+    if (BUILD_TESTING)
+      find_package (ament_cmake_pytest REQUIRED)
+      ament_add_pytest_test (utils_wait_for_received
+        tests/test_utils_wait_for_received.py)
+    endif (BUILD_TESTING)
+
     ament_package ()
   endif (ament_cmake_FOUND)
 

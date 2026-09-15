@@ -339,18 +339,35 @@ class utils:
 
 
     def __wait_for_received(self, get_last_received_ts, timeout):
-        """Wait for first data to be received, at most `timeout` seconds.
-           `get_last_received_ts` should be a callable which returns time (ns)
-           when last data was received.
+        """Wait for fresh data to be received.
+
+           When `timeout` is ``None``, wait up to the configured connection
+           timeout only if no data has ever been received.  Once data has been
+           received, a parameterless getter remains non-blocking and lets
+           `__raise_on_not_received` report stale data immediately.  Passing
+           zero explicitly always selects non-blocking behavior.
+
+           `get_last_received_ts` should be a callable which returns the
+           wall-clock time (ns) when data was last received.
         """
         if timeout is None:
-            return
+            if get_last_received_ts() != 0:
+                return
+            timeout = self.__connection_timeout
 
-        start = self.__ral.now()
-        while self.__ral.to_sec(self.__ral.now() - start) < timeout:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
             time_since_receive = time.time_ns() - get_last_received_ts()
             if time_since_receive < self.__connection_timeout_ns:
                 return
+
+            # Subscriber callbacks run on another thread.  Yield here instead
+            # of consuming a full CPU while waiting for the first callback.
+            time.sleep(min(0.001, max(0.0, deadline - time.monotonic())))
+
+        time_since_receive = time.time_ns() - get_last_received_ts()
+        if time_since_receive < self.__connection_timeout_ns:
+            return
 
         raise TimeoutError(f'no data received within {timeout} seconds')
 
@@ -403,8 +420,10 @@ class utils:
         * ``setpoint_jv(wait_timeout)`` — returns ``(velocity, timestamp)``
         * ``setpoint_jf(wait_timeout)`` — returns ``(effort, timestamp)``
 
-        All getters accept an optional *wait_timeout* (seconds) that
-        blocks until the first message has been received.
+        All getters accept an optional *wait_timeout* (seconds).  With no
+        argument, a getter waits up to the configured connection timeout if no
+        message has ever been received.  Pass ``0.0`` for a non-blocking first
+        call, or a positive value to select an explicit wait duration.
 
         :raises RuntimeWarning: If ``setpoint_js`` has already been added.
         """
@@ -518,8 +537,10 @@ class utils:
         * ``measured_jv(wait_timeout)`` — returns ``(velocity, timestamp)``
         * ``measured_jf(wait_timeout)`` — returns ``(effort, timestamp)``
 
-        All getters accept an optional *wait_timeout* (seconds) that
-        blocks until the first message has been received.
+        All getters accept an optional *wait_timeout* (seconds).  With no
+        argument, a getter waits up to the configured connection timeout if no
+        message has ever been received.  Pass ``0.0`` for a non-blocking first
+        call, or a positive value to select an explicit wait duration.
 
         :raises RuntimeWarning: If ``measured_js`` has already been added.
         """

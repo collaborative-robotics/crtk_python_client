@@ -1,6 +1,13 @@
 Change log
 ==========
 
+Next
+====
+
+* A parameterless subscribed-data getter now waits up to the configured
+  connection timeout when no message has been received yet.  Pass
+  ``wait_timeout=0.0`` to retain explicitly non-blocking behavior.
+
 1.5.0 (2026-08-22)
 ==================
 
